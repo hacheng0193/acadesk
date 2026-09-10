@@ -38,6 +38,11 @@ function migrate(database: Database.Database): void {
 function open(): Database.Database {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const database = new Database(DB_PATH);
+  // `next build` collects page data in several worker processes at once, and
+  // each one opens this database and applies the schema. Without a busy timeout
+  // they collide on the very first build of a fresh clone and the build dies
+  // with SQLITE_BUSY. Wait for the other writer instead of failing.
+  database.pragma("busy_timeout = 10000");
   database.pragma("journal_mode = WAL");
   database.pragma("foreign_keys = ON");
   database.exec(fs.readFileSync(path.join(process.cwd(), "db", "schema.sql"), "utf8"));
