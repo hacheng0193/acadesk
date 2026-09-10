@@ -1,0 +1,29 @@
+{
+  "name": "acadesk",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "backup": "node --experimental-strip-types scripts/backup.mts",
+    "autostart:install": "sh scripts/install-autostart.sh",
+    "autostart:uninstall": "sh scripts/uninstall-autostart.sh"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "marked": "^15.0.7",
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.13.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.0"
+  }
+}

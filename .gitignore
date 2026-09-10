@@ -1,0 +1,20 @@
+# dependencies
+node_modules
+
+# next.js build output
+.next
+.next-prod
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# your data — never commit these
+data/*.db
+data/*.db-*
+data/papers/*
+!data/papers/.gitkeep
+backups/
+
+# local config & noise
+.env.local
+*.log
+.DS_Store

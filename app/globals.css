@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, -apple-system, "SF Pro Text", "Noto Sans TC",
+    "PingFang TC", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+/* Semantic surface tokens: one definition per role, swapped wholesale in dark. */
+:root {
+  --bg: oklch(0.985 0.002 265);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.968 0.003 265);
+  --border: oklch(0.905 0.005 265);
+  --text: oklch(0.24 0.015 265);
+  --text-dim: oklch(0.53 0.014 265);
+  --accent: oklch(0.55 0.19 275);
+  --accent-soft: oklch(0.94 0.03 275);
+  --danger: oklch(0.58 0.2 25);
+  --danger-soft: oklch(0.95 0.04 25);
+  --warn: oklch(0.68 0.16 65);
+  --warn-soft: oklch(0.95 0.05 75);
+  --ok: oklch(0.6 0.14 155);
+  --ok-soft: oklch(0.94 0.05 155);
+  --shadow: 0 1px 2px oklch(0.2 0.02 265 / 0.06), 0 4px 16px oklch(0.2 0.02 265 / 0.05);
+
+  /* Categorical palette for entity colours and charts. Validated for CVD
+     separation and contrast in both modes (dataviz validator, 2026-09). */
+  --c-blue: #2a78d6;
+  --c-orange: #eb6834;
+  --c-aqua: #1baf7a;
+  --c-yellow: #eda100;
+  --c-magenta: #e87ba4;
+  --c-green: #008300;
+  --c-violet: #4a3aa7;
+  --c-red: #e34948;
+  --c-none: oklch(0.6 0.02 265);
+  color-scheme: light;
+}
+
+html.dark {
+  --bg: oklch(0.175 0.008 265);
+  --surface: oklch(0.215 0.009 265);
+  --surface-2: oklch(0.256 0.01 265);
+  --border: oklch(0.31 0.012 265);
+  --text: oklch(0.94 0.005 265);
+  --text-dim: oklch(0.68 0.012 265);
+  --accent: oklch(0.7 0.15 275);
+  --accent-soft: oklch(0.32 0.06 275);
+  --danger: oklch(0.7 0.17 25);
+  --danger-soft: oklch(0.32 0.07 25);
+  --warn: oklch(0.78 0.14 70);
+  --warn-soft: oklch(0.33 0.06 70);
+  --ok: oklch(0.72 0.13 155);
+  --ok-soft: oklch(0.3 0.06 155);
+  --shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 4px 16px oklch(0 0 0 / 0.25);
+
+  --c-blue: #3987e5;
+  --c-orange: #d95926;
+  --c-aqua: #199e70;
+  --c-yellow: #c98500;
+  --c-magenta: #d55181;
+  --c-green: #008300;
+  --c-violet: #9085e9;
+  --c-red: #e66767;
+  --c-none: oklch(0.62 0.02 265);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-dim: var(--text-dim);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Rendered Markdown. Kept small and typographic rather than pulling in a plugin. */
+.prose-note {
+  line-height: 1.75;
+  word-wrap: break-word;
+}
+.prose-note > * + * { margin-top: 0.9em; }
+.prose-note h1 { font-size: 1.6rem; font-weight: 700; margin-top: 1.6em; }
+.prose-note h2 { font-size: 1.3rem; font-weight: 650; margin-top: 1.5em; }
+.prose-note h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.4em; }
+.prose-note h1:first-child,
+.prose-note h2:first-child,
+.prose-note h3:first-child { margin-top: 0; }
+.prose-note ul { list-style: disc; padding-left: 1.4em; }
+.prose-note ol { list-style: decimal; padding-left: 1.4em; }
+.prose-note li + li { margin-top: 0.3em; }
+.prose-note a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.prose-note code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.prose-note pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+}
+.prose-note pre code { background: none; border: 0; padding: 0; font-size: 0.85em; }
+.prose-note blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  color: var(--text-dim);
+}
+.prose-note hr { border-color: var(--border); }
+.prose-note table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.prose-note th, .prose-note td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
+.prose-note th { background: var(--surface-2); }
+.prose-note img { border-radius: 8px; }
+.prose-note input[type="checkbox"] { margin-right: 0.4em; }
+
+/* Scrollbars that don't shout. */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
