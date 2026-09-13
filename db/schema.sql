@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS courses (
   instructor    TEXT NOT NULL DEFAULT '',
   credits       REAL NOT NULL DEFAULT 3,
   semester      TEXT NOT NULL DEFAULT '',
-  color         TEXT NOT NULL DEFAULT 'indigo',
+  color         TEXT NOT NULL DEFAULT 'blue',
   schedule_json TEXT NOT NULL DEFAULT '[]',
   archived      INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS projects (
   status         TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','done')),
   advisor        TEXT NOT NULL DEFAULT '',
   started_on     TEXT,
-  color          TEXT NOT NULL DEFAULT 'emerald',
+  color          TEXT NOT NULL DEFAULT 'aqua',
   backup_enabled INTEGER NOT NULL DEFAULT 1,
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );

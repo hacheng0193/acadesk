@@ -21,7 +21,7 @@ export function ProjectForm({ project, trigger }: { project?: Project; trigger: 
 }
 
 function Inner({ project, close }: { project?: Project; close: () => void }) {
-  const [color, setColor] = useState(project?.color ?? "emerald");
+  const [color, setColor] = useState(project?.color ?? "aqua");
   return (
     <form action={(fd) => saveProject(fd).then(close)} className="space-y-3">
       {project ? <input type="hidden" name="id" value={project.id} /> : null}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { today } from "@/lib/dates";
-import type { Status } from "@/lib/types";
+import { COLORS, type Status } from "@/lib/types";
 import { int, nullable, oneOf, str } from "./shared";
 
 function refresh(projectId?: number | null) {
@@ -20,7 +20,7 @@ export async function saveProject(fd: FormData) {
     status: oneOf(fd, "status", ["active", "paused", "done"] as const, "active"),
     advisor: str(fd, "advisor"),
     started_on: nullable(fd, "started_on"),
-    color: oneOf(fd, "color", ["indigo", "emerald", "amber", "rose", "sky", "violet", "teal", "orange"], "emerald"),
+    color: oneOf(fd, "color", COLORS, "aqua"),
   };
   if (id) {
     db.prepare(

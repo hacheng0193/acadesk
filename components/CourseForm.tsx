@@ -32,7 +32,7 @@ export function CourseForm({ course, trigger }: { course?: Course; trigger: Reac
 
 function Inner({ course, close }: { course?: Course; close: () => void }) {
   const [slots, setSlots] = useState<Slot[]>(course ? parse(course.schedule_json) : []);
-  const [color, setColor] = useState(course?.color ?? "indigo");
+  const [color, setColor] = useState(course?.color ?? "blue");
   const formRef = useRef<HTMLFormElement>(null);
 
   /** Text fields are uncontrolled, so fill them straight on the DOM nodes;

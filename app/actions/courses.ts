@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import type { Slot } from "@/lib/types";
+import { COLORS, type Slot } from "@/lib/types";
 import { int, num, oneOf, str } from "./shared";
 
 /** Slots arrive as parallel arrays from the repeatable rows in the course form. */
@@ -31,7 +31,9 @@ function fields(fd: FormData) {
     instructor: str(fd, "instructor"),
     credits: num(fd, "credits") ?? 3,
     semester: str(fd, "semester"),
-    color: oneOf(fd, "color", ["indigo", "emerald", "amber", "rose", "sky", "violet", "teal", "orange"], "indigo"),
+    // Derived from COLORS, not a second hand-written list: when the palette
+    // changed, a hardcoded copy here silently rejected every new colour name.
+    color: oneOf(fd, "color", COLORS, "blue"),
     schedule_json: JSON.stringify(readSlots(fd)),
   };
 }
