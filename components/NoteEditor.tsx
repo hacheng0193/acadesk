@@ -22,9 +22,11 @@ export function NoteEditor({
   const [content, setContent] = useState(initialContent);
   const [saved, setSaved] = useState(initialContent);
   const [mtime, setMtime] = useState(initialMtime);
-  const [mode, setMode] = useState<Mode>("split");
+  // Opening a note is usually reading, not editing.
+  const [mode, setMode] = useState<Mode>("preview");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [conflict, setConflict] = useState<{ current: string; mtime: number } | null>(null);
+  const [copied, setCopied] = useState<"" | "ok" | "fail">("");
   const [message, setMessage] = useState("");
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -53,6 +55,36 @@ export function NoteEditor({
     },
     [relPath],
   );
+
+  /**
+   * Copies the Markdown source rather than the rendered text: it is what the
+   * note actually is, and it survives pasting into anything that understands
+   * Markdown. Takes the on-screen content, so unsaved edits come along too.
+   */
+  const copyAll = async () => {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(content);
+      ok = true;
+    } catch {
+      // Clipboard API needs a focused, permitted document. Fall back to the
+      // old selection-based copy, which works in a few places it doesn't.
+      try {
+        const scratch = document.createElement("textarea");
+        scratch.value = content;
+        scratch.style.position = "fixed";
+        scratch.style.opacity = "0";
+        document.body.appendChild(scratch);
+        scratch.select();
+        ok = document.execCommand("copy");
+        scratch.remove();
+      } catch {
+        ok = false;
+      }
+    }
+    setCopied(ok ? "ok" : "fail");
+    setTimeout(() => setCopied(""), 2200);
+  };
 
   // ⌘S saves; the browser's own save dialog is never what you want here.
   useEffect(() => {
@@ -105,6 +137,18 @@ export function NoteEditor({
         </span>
 
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={copyAll}
+            title={
+              copied === "fail"
+                ? "瀏覽器擋下了複製，改用「編輯」模式按 ⌘A 再 ⌘C"
+                : "複製整份筆記的 Markdown 原始內容"
+            }
+          >
+            {copied === "ok" ? "已複製" : copied === "fail" ? "複製失敗" : "複製全文"}
+          </Button>
           <a href={obsidianUri} className="text-xs text-dim hover:text-ink" title="用 Obsidian 開啟">
             用 Obsidian 開啟 ↗
           </a>
