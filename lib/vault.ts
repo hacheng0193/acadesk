@@ -173,3 +173,23 @@ export function safeFileName(title: string): string {
   const cleaned = title.replace(/[\/\\:*?"<>|\0]/g, "-").replace(/^\.+/, "").trim();
   return (cleaned || "未命名") + ".md";
 }
+
+/**
+ * Every folder in the vault with the number of notes at or below it. Counts are
+ * descendant-inclusive so they match what the notes page's tree shows.
+ */
+export function listFolders(): { path: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const file of listNotes()) {
+    const slash = file.rel.lastIndexOf("/");
+    if (slash === -1) continue;
+    const segments = file.rel.slice(0, slash).split("/");
+    for (let i = 1; i <= segments.length; i++) {
+      const dir = segments.slice(0, i).join("/");
+      counts.set(dir, (counts.get(dir) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+}

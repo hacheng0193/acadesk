@@ -9,11 +9,12 @@ import { ProjectForm } from "@/components/ProjectForm";
 import { StartTimerButton } from "@/components/StartTimerButton";
 import { Badge, Card, Empty, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
 import { formatHours } from "@/lib/dates";
-import { notesFor } from "@/lib/queries/notes";
+import { foldersFor, notesFor } from "@/lib/queries/notes";
 import { papersForProject } from "@/lib/queries/papers";
 import { getProject, listLogs, listMilestones, listProjects } from "@/lib/queries/research";
 import { projectHours } from "@/lib/queries/time";
 import { colorOf } from "@/lib/types";
+import { listFolders } from "@/lib/vault";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const logs = listLogs({ projectId: project.id, limit: 100 });
   const papers = papersForProject(project.id);
   const notes = notesFor("project", project.id);
+  const noteFolders = foldersFor("project", project.id);
+  const vaultFolders = listFolders();
   const hours = projectHours(project.id);
   const allProjects = listProjects();
 
@@ -123,7 +126,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
           <Card className="p-4">
             <SectionTitle title="相關筆記" />
-            <NoteLinkPicker entityType="project" entityId={project.id} linked={notes} />
+            <NoteLinkPicker
+              entityType="project"
+              entityId={project.id}
+              linked={notes}
+              folders={noteFolders}
+              vaultFolders={vaultFolders}
+              backTo={{ href: `/research/${project.id}`, label: project.title }}
+            />
           </Card>
 
           <Card className="p-4">

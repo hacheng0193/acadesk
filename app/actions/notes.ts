@@ -104,3 +104,21 @@ export async function setVaultPath(fd: FormData) {
   }
   revalidatePath("/", "layout");
 }
+
+/** Follow a whole folder. Notes under it (including subfolders) count as linked
+ *  from now on, and keep counting as the folder grows. */
+export async function linkFolder(folder: string, entityType: string, entityId: number) {
+  const clean = folder.replace(/^\/+|\/+$/g, "");
+  if (!clean) return;
+  db.prepare(
+    "INSERT OR IGNORE INTO note_folder_links (folder, entity_type, entity_id) VALUES (?, ?, ?)",
+  ).run(clean, entityType, entityId);
+  revalidatePath("/", "layout");
+}
+
+export async function unlinkFolder(folder: string, entityType: string, entityId: number) {
+  db.prepare(
+    "DELETE FROM note_folder_links WHERE folder = ? AND entity_type = ? AND entity_id = ?",
+  ).run(folder, entityType, entityId);
+  revalidatePath("/", "layout");
+}

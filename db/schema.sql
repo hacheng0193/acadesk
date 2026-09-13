@@ -242,3 +242,13 @@ END;
 CREATE TRIGGER IF NOT EXISTS search_projects_ad AFTER DELETE ON projects BEGIN
   DELETE FROM search_index WHERE kind = 'project' AND ref_id = old.id;
 END;
+
+-- A topic can follow whole vault folders, not just individual notes. Resolved
+-- against the live vault on every render, so notes added to the folder later
+-- show up without re-importing anything.
+CREATE TABLE IF NOT EXISTS note_folder_links (
+  folder      TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('project','course','assignment','paper')),
+  entity_id   INTEGER NOT NULL,
+  PRIMARY KEY (folder, entity_type, entity_id)
+);

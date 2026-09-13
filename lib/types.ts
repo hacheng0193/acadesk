@@ -191,7 +191,12 @@ export function splitList(v: string): string[] {
   return v ? v.split("|").filter(Boolean) : [];
 }
 
-export type LinkedNote = { id: number; rel_path: string; title: string };
+export type LinkedNote = {
+  rel_path: string;
+  title: string;
+  /** null when linked individually; otherwise the followed folder it came from. */
+  via: string | null;
+};
 
 export type Todo = {
   id: number;
