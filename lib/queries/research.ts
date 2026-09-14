@@ -1,5 +1,5 @@
 import { db } from "../db";
-import type { LogEntry, Milestone, Project } from "../types";
+import type { Milestone, Project } from "../types";
 
 export function listProjects(): Project[] {
   return db
@@ -34,18 +34,3 @@ export function activeMilestones(limit = 6): (Milestone & { project_title: strin
     .all(limit) as (Milestone & { project_title: string; project_color: string })[];
 }
 
-export function listLogs(opts: { projectId?: number; limit?: number } = {}): (LogEntry & {
-  project_title: string | null;
-  project_color: string | null;
-})[] {
-  const where = opts.projectId ? "WHERE l.project_id = ?" : "";
-  const params: unknown[] = opts.projectId ? [opts.projectId] : [];
-  params.push(opts.limit ?? 200);
-  return db
-    .prepare(
-      `SELECT l.*, p.title AS project_title, p.color AS project_color
-       FROM log_entries l LEFT JOIN projects p ON p.id = l.project_id
-       ${where} ORDER BY l.occurred_on DESC, l.id DESC LIMIT ?`,
-    )
-    .all(...params) as (LogEntry & { project_title: string | null; project_color: string | null })[];
-}

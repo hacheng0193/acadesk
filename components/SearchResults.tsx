@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { SEARCH_KIND_LABEL as KIND_LABEL, type SearchHit, type SearchKind } from "@/lib/types";
 import { Badge, cx } from "./ui";
 
-const ORDER: SearchKind[] = ["item", "log", "note", "paper", "project"];
+const ORDER: SearchKind[] = ["item", "note", "paper", "project"];
 
 /** Search half of the command palette: type to find, Enter to open the first hit. */
 export function SearchResults({

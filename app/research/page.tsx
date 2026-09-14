@@ -86,7 +86,6 @@ export default async function ResearchPage({
                       <Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge>
                       <Badge>{PROJECT_KIND_LABEL[p.kind]}</Badge>
                       <BackupToggle
-                        kind="project"
                         id={p.id}
                         enabled={!!p.backup_enabled}
                         label={p.title}

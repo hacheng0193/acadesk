@@ -67,18 +67,9 @@ CREATE TABLE IF NOT EXISTS milestones (
 );
 CREATE INDEX IF NOT EXISTS idx_milestones_project ON milestones(project_id);
 
-CREATE TABLE IF NOT EXISTS log_entries (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  project_id  INTEGER REFERENCES projects(id) ON DELETE SET NULL,
-  kind        TEXT NOT NULL DEFAULT 'experiment' CHECK (kind IN ('experiment','meeting','idea')),
-  title       TEXT NOT NULL,
-  body_md     TEXT NOT NULL DEFAULT '',
-  occurred_on TEXT NOT NULL,
-  backup_enabled INTEGER NOT NULL DEFAULT 1,
-  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_logs_project ON log_entries(project_id);
-CREATE INDEX IF NOT EXISTS idx_logs_date ON log_entries(occurred_on);
+-- Research log entries used to live in a log_entries table. They are vault
+-- notes now (frontmatter `type: experiment|meeting|idea`); see
+-- scripts/migrate-logs-to-vault.mts for moving an old database across.
 
 CREATE TABLE IF NOT EXISTS papers (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -205,19 +196,6 @@ CREATE TRIGGER IF NOT EXISTS search_assignments_au AFTER UPDATE ON assignments B
 END;
 CREATE TRIGGER IF NOT EXISTS search_assignments_ad AFTER DELETE ON assignments BEGIN
   DELETE FROM search_index WHERE kind = 'item' AND ref_id = old.id;
-END;
-
-CREATE TRIGGER IF NOT EXISTS search_logs_ai AFTER INSERT ON log_entries BEGIN
-  INSERT INTO search_index (kind, ref_id, ref_key, title, body)
-  VALUES ('log', new.id, COALESCE(new.project_id, 0), new.title, new.body_md);
-END;
-CREATE TRIGGER IF NOT EXISTS search_logs_au AFTER UPDATE ON log_entries BEGIN
-  DELETE FROM search_index WHERE kind = 'log' AND ref_id = old.id;
-  INSERT INTO search_index (kind, ref_id, ref_key, title, body)
-  VALUES ('log', new.id, COALESCE(new.project_id, 0), new.title, new.body_md);
-END;
-CREATE TRIGGER IF NOT EXISTS search_logs_ad AFTER DELETE ON log_entries BEGIN
-  DELETE FROM search_index WHERE kind = 'log' AND ref_id = old.id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS search_papers_ai AFTER INSERT ON papers BEGIN

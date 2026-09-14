@@ -12,26 +12,36 @@ import { Badge, Card, Empty, PageHeader, SectionTitle, buttonClass } from "@/com
 import { formatHours } from "@/lib/dates";
 import { foldersFor, notesFor } from "@/lib/queries/notes";
 import { papersForProject } from "@/lib/queries/papers";
-import { getProject, listLogs, listMilestones, listProjects } from "@/lib/queries/research";
+import { defaultLogFolder, logsFor } from "@/lib/queries/logs";
+import { getProject, listMilestones, listProjects } from "@/lib/queries/research";
 import { projectHours } from "@/lib/queries/time";
-import { colorOf } from "@/lib/types";
+import { LOG_KIND, colorOf } from "@/lib/types";
 import { listFolders } from "@/lib/vault";
 
 export const dynamic = "force-dynamic";
 
-const KIND = {
-  experiment: { label: "實驗", tone: "accent" },
-  meeting: { label: "Meeting", tone: "warn" },
-  idea: { label: "想法", tone: "neutral" },
-} as const;
+/** Entries shown before "show all" - the page is for scanning, the note for reading. */
+const LOG_PAGE = 10;
 
-export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
+function noteHref(rel: string, project: { id: number; title: string }): string {
+  const q = new URLSearchParams({ from: `/research/${project.id}`, fromLabel: project.title });
+  return `/notes/${rel.split("/").map(encodeURIComponent).join("/")}?${q}`;
+}
+
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const showAll = (await searchParams).logs === "all";
   const project = getProject(Number(id));
   if (!project) notFound();
 
   const milestones = listMilestones(project.id);
-  const logs = listLogs({ projectId: project.id, limit: 100 });
+  const logs = logsFor(project.id);
   const papers = papersForProject(project.id);
   const notes = notesFor("project", project.id);
   const noteFolders = foldersFor("project", project.id);
@@ -58,16 +68,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         actions={
           <>
             <BackupToggle
-              kind="project"
               id={project.id}
               enabled={!!project.backup_enabled}
               label={project.title}
             />
             <StartTimerButton projectId={project.id} />
             <LogForm
-              projects={allProjects}
+              projects={allProjects.map((p) => ({ id: p.id, title: p.title, folder: defaultLogFolder(p) }))}
               defaultProjectId={project.id}
-              trigger={<span className={buttonClass({ variant: "primary" })}>＋ 新增紀錄</span>}
             />
             <ProjectForm
               project={project}
@@ -87,35 +95,42 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <div>
           <SectionTitle title="研究日誌" hint={`${logs.length} 筆`} />
           {logs.length ? (
-            <div className="space-y-3">
-              {logs.map((log) => (
-                <Card key={log.id} className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Badge tone={KIND[log.kind].tone}>{KIND[log.kind].label}</Badge>
-                    <LogForm
-                      log={log}
-                      projects={allProjects}
-                      trigger={<span className="flex-1 cursor-pointer truncate text-sm font-medium hover:underline">{log.title}</span>}
-                    />
-                    <BackupToggle
-                      kind="log"
-                      id={log.id}
-                      enabled={!!log.backup_enabled}
-                      label={log.title}
-                      inheritedOff={!project.backup_enabled}
-                    />
-                    <span className="shrink-0 text-xs tabular-nums text-dim">{log.occurred_on}</span>
-                  </div>
-                  {log.body_md ? (
-                    <div className="mt-2 border-t border-line pt-2">
-                      <Markdown>{log.body_md}</Markdown>
-                    </div>
-                  ) : null}
-                </Card>
-              ))}
-            </div>
+            <>
+              <ul className="space-y-2">
+                {(showAll ? logs : logs.slice(0, LOG_PAGE)).map((log) => (
+                  <li key={log.rel_path}>
+                    <Link
+                      href={noteHref(log.rel_path, project)}
+                      className="block rounded-xl border border-line bg-surface px-4 py-3 transition-colors hover:border-[var(--accent)]"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge tone={LOG_KIND[log.kind].tone}>{LOG_KIND[log.kind].label}</Badge>
+                        <span className="flex-1 truncate text-sm font-medium">{log.title}</span>
+                        <span className="shrink-0 text-xs tabular-nums text-dim">{log.date}</span>
+                      </div>
+                      {log.preview ? (
+                        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-dim">{log.preview}</p>
+                      ) : null}
+                      <p className="mt-1.5 truncate font-mono text-[10px] text-dim/70">{log.rel_path}</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {logs.length > LOG_PAGE ? (
+                <Link
+                  href={showAll ? `/research/${project.id}` : `/research/${project.id}?logs=all`}
+                  scroll={false}
+                  className="mt-3 inline-block text-xs text-dim hover:text-ink"
+                >
+                  {showAll ? "收合" : `顯示全部 ${logs.length} 筆`}
+                </Link>
+              ) : null}
+            </>
           ) : (
-            <Empty>還沒有紀錄。做完實驗或開完會就順手記一筆。</Empty>
+            <Empty>
+              還沒有紀錄。做完實驗或開完會就順手記一筆 — 會存成 vault 裡的筆記（
+              <code className="font-mono">{defaultLogFolder(project)}/</code>）。
+            </Empty>
           )}
         </div>
 

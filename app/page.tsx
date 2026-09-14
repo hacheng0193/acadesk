@@ -6,13 +6,12 @@ import { addDays, formatHours, startOfWeek, today } from "@/lib/dates";
 import { upcomingOccurrences } from "@/lib/queries/assignments";
 import { coursesOnDay } from "@/lib/queries/courses";
 import { recentNotes } from "@/lib/queries/notes";
-import { activeMilestones, listLogs } from "@/lib/queries/research";
+import { recentLogs } from "@/lib/queries/logs";
+import { activeMilestones } from "@/lib/queries/research";
 import { attendanceStreak, checkinFor, totalHours, weeklyGoal } from "@/lib/queries/time";
-import { colorOf } from "@/lib/types";
+import { LOG_KIND, colorOf } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-const KIND_LABEL = { experiment: "實驗", meeting: "Meeting", idea: "想法" } as const;
 
 export default function Dashboard() {
   const day = today();
@@ -28,8 +27,12 @@ export default function Dashboard() {
   const upcoming = upcomingOccurrences(addDays(day, 7));
   const classes = coursesOnDay(weekday);
   const milestones = activeMilestones(5);
-  const logs = listLogs({ limit: 4 });
-  const notes = recentNotes(5);
+  const logs = recentLogs(4);
+  // Log entries are notes too; don't list the same file twice.
+  const logPaths = new Set(logs.map((l) => l.rel_path));
+  const notes = recentNotes(5 + logs.length)
+    .filter((n) => !logPaths.has(n.rel_path))
+    .slice(0, 5);
 
   const greeting = new Date().getHours() < 12 ? "早安" : new Date().getHours() < 18 ? "午安" : "晚安";
 
@@ -126,15 +129,15 @@ export default function Dashboard() {
           {logs.length || notes.length ? (
             <ul className="space-y-2.5 text-sm">
               {logs.map((l) => (
-                <li key={`log-${l.id}`} className="flex items-center gap-2.5">
-                  <Badge tone="accent">{KIND_LABEL[l.kind]}</Badge>
+                <li key={`log-${l.rel_path}`} className="flex items-center gap-2.5">
+                  <Badge tone={LOG_KIND[l.kind].tone}>{LOG_KIND[l.kind].label}</Badge>
                   <Link
-                    href={l.project_id ? `/research/${l.project_id}` : "/research"}
+                    href={`/notes/${l.rel_path.split("/").map(encodeURIComponent).join("/")}?${new URLSearchParams({ from: `/research/${l.project_id}`, fromLabel: l.project_title })}`}
                     className="flex-1 truncate hover:underline"
                   >
                     {l.title}
                   </Link>
-                  <span className="shrink-0 text-xs tabular-nums text-dim">{l.occurred_on.slice(5)}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-dim">{l.date.slice(5)}</span>
                 </li>
               ))}
               {notes.map((n) => (

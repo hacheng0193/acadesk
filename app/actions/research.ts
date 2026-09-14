@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { today } from "@/lib/dates";
 import { COLORS, PROJECT_KINDS, type ProjectKind, type Status } from "@/lib/types";
 import { int, nullable, oneOf, str } from "./shared";
 
@@ -88,47 +87,11 @@ export async function deleteMilestone(id: number) {
   refresh(row?.project_id);
 }
 
-export async function saveLog(fd: FormData) {
-  const id = int(fd, "id");
-  const f = {
-    project_id: int(fd, "project_id"),
-    kind: oneOf(fd, "kind", ["experiment", "meeting", "idea"] as const, "experiment"),
-    title: str(fd, "title") || "未命名紀錄",
-    body_md: str(fd, "body_md"),
-    occurred_on: str(fd, "occurred_on") || today(),
-  };
-  if (id) {
-    db.prepare(
-      `UPDATE log_entries SET project_id=@project_id, kind=@kind, title=@title,
-       body_md=@body_md, occurred_on=@occurred_on WHERE id=@id`,
-    ).run({ ...f, id });
-  } else {
-    db.prepare(
-      `INSERT INTO log_entries (project_id, kind, title, body_md, occurred_on)
-       VALUES (@project_id, @kind, @title, @body_md, @occurred_on)`,
-    ).run(f);
-  }
-  refresh(f.project_id);
-}
-
-export async function deleteLog(id: number) {
-  const row = db.prepare("SELECT project_id FROM log_entries WHERE id = ?").get(id) as
-    | { project_id: number | null }
-    | undefined;
-  db.prepare("DELETE FROM log_entries WHERE id = ?").run(id);
-  refresh(row?.project_id);
-}
-
 /**
  * Toggle whether a record may be included in the off-machine (GitHub) export.
  * Local snapshots always contain everything - this only governs what leaves.
  */
-export async function setBackupEnabled(
-  kind: "project" | "log",
-  id: number,
-  enabled: boolean,
-) {
-  const table = kind === "project" ? "projects" : "log_entries";
-  db.prepare(`UPDATE ${table} SET backup_enabled = ? WHERE id = ?`).run(enabled ? 1 : 0, id);
+export async function setBackupEnabled(id: number, enabled: boolean) {
+  db.prepare("UPDATE projects SET backup_enabled = ? WHERE id = ?").run(enabled ? 1 : 0, id);
   revalidatePath("/", "layout");
 }

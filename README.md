@@ -48,6 +48,14 @@ A today's-todo list and a research timer live in the sidebar on every page.
   note dropped into `daily/` tomorrow shows up on its own — no re-importing.
   Picking a folder includes everything beneath it. "＋ 新增筆記" creates the
   file in the vault, links it, and opens it.
+- **The research log is just notes.** "＋ 新增紀錄" creates
+  `<topic folder>/<date> <title>.md` with `type` (experiment / meeting / idea)
+  and `date` in the frontmatter, shows that path before saving, and opens it.
+  The topic page lists title, date and a two-line preview; the note holds the
+  rest. Any note attached to the topic with one of those types counts, including
+  ones written in Obsidian. Older databases: run
+  `node --experimental-strip-types scripts/migrate-logs-to-vault.mts` (dry run),
+  then add `--apply`.
 - **Courses can own a research topic.** Adding a course creates a same-named
   topic by default (categorised as a course topic), reachable from the course
   card or straight from the timetable block. It's a real foreign key, so
@@ -103,9 +111,10 @@ cd backups/export
 git init && git remote add origin <your-private-repo>
 ```
 
-The app never creates repos or touches your credentials. Research topics and log
-entries each have a per-item backup toggle; items switched off stay in local
-snapshots but are excluded from the export. Note that **git history cannot be
+The app never creates repos or touches your credentials. Research topics each
+have a backup toggle; topics switched off stay in local snapshots but are
+excluded from the export. Research log entries are vault notes, so they are
+never part of the export. Note that **git history cannot be
 un-pushed** — turning a toggle off later only keeps the item out of *future*
 commits. Paper PDFs are never uploaded.
 

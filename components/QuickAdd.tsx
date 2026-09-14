@@ -5,9 +5,9 @@ import { useEffect, useState, useTransition } from "react";
 import { saveAssignment } from "@/app/actions/assignments";
 import { newNote } from "@/app/actions/notes";
 import { savePaper } from "@/app/actions/papers";
-import { saveLog } from "@/app/actions/research";
 import { today } from "@/lib/dates";
 import { ITEM_KINDS, type Course, type Project } from "@/lib/types";
+import { LogForm, type LogTarget } from "./LogForm";
 import { SearchResults } from "./SearchResults";
 import { Modal, ModalActions } from "./ui/Modal";
 import { Field, cx, inputClass } from "./ui";
@@ -21,7 +21,15 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export function QuickAdd({ projects, courses }: { projects: Project[]; courses: Course[] }) {
+export function QuickAdd({
+  projects,
+  courses,
+  logTargets,
+}: {
+  projects: Project[];
+  courses: Course[];
+  logTargets: LogTarget[];
+}) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("assignment");
   const [query, setQuery] = useState("");
@@ -80,7 +88,7 @@ export function QuickAdd({ projects, courses }: { projects: Project[]; courses: 
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜尋行程、研究日誌、筆記、文獻…"
+              placeholder="搜尋行程、筆記、文獻…"
               className={cx(inputClass, "mb-3")}
             />
 
@@ -176,39 +184,7 @@ export function QuickAdd({ projects, courses }: { projects: Project[]; courses: 
               </form>
             ) : null}
 
-            {tab === "log" ? (
-              <form onSubmit={submit(saveLog)} className="space-y-3">
-                <Field label="標題">
-                  <input name="title" required className={inputClass} placeholder="今天做了什麼" />
-                </Field>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field label="研究主題" className="col-span-1">
-                    <select name="project_id" className={inputClass}>
-                      <option value="">（無）</option>
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.title}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="類型">
-                    <select name="kind" defaultValue="experiment" className={inputClass}>
-                      <option value="experiment">實驗</option>
-                      <option value="meeting">Meeting</option>
-                      <option value="idea">想法</option>
-                    </select>
-                  </Field>
-                  <Field label="日期">
-                    <input type="date" name="occurred_on" defaultValue={today()} className={inputClass} />
-                  </Field>
-                </div>
-                <Field label="內容（Markdown）">
-                  <textarea name="body_md" rows={5} className={cx(inputClass, "font-mono text-xs")} />
-                </Field>
-                <ModalActions close={close} submitLabel={pending ? "儲存中…" : "新增紀錄"} />
-              </form>
-            ) : null}
+            {tab === "log" ? <LogForm projects={logTargets} compact onDone={close} /> : null}
 
             {tab === "paper" ? (
               <form onSubmit={submit(savePaper)} className="space-y-3">

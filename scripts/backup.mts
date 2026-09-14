@@ -77,9 +77,14 @@ function excluded(): { projectIds: Set<number>; logIds: Set<number> } {
       (r) => r.id,
     ),
   );
-  const logs = db
-    .prepare("SELECT id, project_id, backup_enabled FROM log_entries")
-    .all() as { id: number; project_id: number | null; backup_enabled: number }[];
+  // log_entries only exists in databases not yet run through
+  // migrate-logs-to-vault.mts. Until then its per-entry switches still apply.
+  const hasLogs = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'log_entries'")
+    .get();
+  const logs = (
+    hasLogs ? db.prepare("SELECT id, project_id, backup_enabled FROM log_entries").all() : []
+  ) as { id: number; project_id: number | null; backup_enabled: number }[];
   const logIds = new Set(
     logs
       .filter((l) => !l.backup_enabled || (l.project_id !== null && projectIds.has(l.project_id)))

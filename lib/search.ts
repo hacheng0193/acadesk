@@ -10,8 +10,6 @@ function hrefFor(kind: SearchKind, refKey: string): string {
       return "/assignments";
     case "project":
       return `/research/${refKey}`;
-    case "log":
-      return refKey && refKey !== "0" ? `/research/${refKey}` : "/research";
     case "paper":
       return "/papers";
     case "note":
@@ -93,10 +91,6 @@ export function rebuildIndex(): void {
     db.prepare(
       `INSERT INTO search_index (kind, ref_id, ref_key, title, body)
        SELECT 'item', id, id, title, notes_md FROM assignments`,
-    ).run();
-    db.prepare(
-      `INSERT INTO search_index (kind, ref_id, ref_key, title, body)
-       SELECT 'log', id, COALESCE(project_id, 0), title, body_md FROM log_entries`,
     ).run();
     db.prepare(
       `INSERT INTO search_index (kind, ref_id, ref_key, title, body)

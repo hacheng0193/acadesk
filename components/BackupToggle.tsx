@@ -13,34 +13,18 @@ import { Modal } from "./ui/Modal";
  * direction asks for confirmation. Turning it OFF is safe and immediate.
  */
 export function BackupToggle({
-  kind,
   id,
   enabled,
   label,
-  inheritedOff,
 }: {
-  kind: "project" | "log";
   id: number;
   enabled: boolean;
   label: string;
-  /** Log under an excluded project: forced off, not overridable here. */
-  inheritedOff?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
 
-  if (inheritedOff) {
-    return (
-      <span
-        className="shrink-0 text-[11px] text-[var(--warn)]"
-        title="所屬研究主題已關閉備份，底下的紀錄一律排除"
-      >
-        ⊘ 隨主題排除
-      </span>
-    );
-  }
-
-  const apply = (next: boolean) => startTransition(() => void setBackupEnabled(kind, id, next));
+  const apply = (next: boolean) => startTransition(() => void setBackupEnabled(id, next));
 
   return (
     <>

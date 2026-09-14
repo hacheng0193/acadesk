@@ -112,15 +112,27 @@ export type Milestone = {
   sort_order: number;
 };
 
-export type LogEntry = {
-  id: number;
-  project_id: number | null;
-  kind: "experiment" | "meeting" | "idea";
+export type LogKind = "experiment" | "meeting" | "idea";
+
+export const LOG_KINDS: { key: LogKind; label: string; tone: "accent" | "warn" | "neutral" }[] = [
+  { key: "experiment", label: "實驗", tone: "accent" },
+  { key: "meeting", label: "Meeting", tone: "warn" },
+  { key: "idea", label: "想法", tone: "neutral" },
+];
+
+export const LOG_KIND: Record<LogKind, (typeof LOG_KINDS)[number]> = Object.fromEntries(
+  LOG_KINDS.map((k) => [k.key, k]),
+) as Record<LogKind, (typeof LOG_KINDS)[number]>;
+
+/** A research log entry: a vault note with `type: experiment|meeting|idea`. */
+export type VaultLog = {
+  rel_path: string;
   title: string;
-  body_md: string;
-  occurred_on: string;
-  backup_enabled: number;
-  created_at: string;
+  kind: LogKind;
+  date: string;
+  /** First few lines of body text, plain. */
+  preview: string;
+  project_id: number;
 };
 
 export type Paper = {
@@ -233,7 +245,7 @@ export const KIND_COLOR: Record<ItemKind, string> = {
   other: "none",
 };
 
-export type SearchKind = "item" | "log" | "paper" | "project" | "note";
+export type SearchKind = "item" | "paper" | "project" | "note";
 
 export type SearchHit = {
   kind: SearchKind;
@@ -246,7 +258,6 @@ export type SearchHit = {
 
 export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   item: "行程",
-  log: "研究日誌",
   paper: "文獻",
   project: "研究主題",
   note: "筆記",

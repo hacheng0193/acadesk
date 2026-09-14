@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { overdueCount } from "@/lib/queries/assignments";
 import { listCourses } from "@/lib/queries/courses";
+import { defaultLogFolder } from "@/lib/queries/logs";
 import { listProjects } from "@/lib/queries/research";
 import { idleMinutes, maxSessionHours, pendingReview, reapAbandonedSession } from "@/lib/idle";
 import { runningSession } from "@/lib/queries/time";
@@ -41,7 +42,13 @@ export function Sidebar() {
         <span className="text-sm font-semibold tracking-tight">Acadesk</span>
       </Link>
 
-      <QuickAdd projects={projects} courses={courses} />
+      <QuickAdd
+        projects={projects}
+        courses={courses}
+        logTargets={projects
+          .filter((p) => p.status !== "done")
+          .map((p) => ({ id: p.id, title: p.title, folder: defaultLogFolder(p) }))}
+      />
 
       <NavLinks
         items={[

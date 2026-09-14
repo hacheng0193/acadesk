@@ -21,7 +21,6 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   { table: "assignments", column: "repeat_rule", definition: "TEXT NOT NULL DEFAULT 'none'" },
   { table: "assignments", column: "repeat_until", definition: "TEXT" },
   { table: "projects", column: "backup_enabled", definition: "INTEGER NOT NULL DEFAULT 1" },
-  { table: "log_entries", column: "backup_enabled", definition: "INTEGER NOT NULL DEFAULT 1" },
   { table: "time_sessions", column: "last_seen_at", definition: "TEXT" },
   { table: "time_sessions", column: "auto_stopped", definition: "INTEGER NOT NULL DEFAULT 0" },
   { table: "time_sessions", column: "reviewed", definition: "INTEGER NOT NULL DEFAULT 0" },

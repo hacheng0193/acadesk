@@ -13,7 +13,11 @@ import {
   vaultRoot,
   writeNote,
 } from "@/lib/vault";
-import { str } from "./shared";
+import { foldersFor } from "@/lib/queries/notes";
+import { defaultLogFolder } from "@/lib/queries/logs";
+import { getProject } from "@/lib/queries/research";
+import { LOG_KINDS, type LogKind } from "@/lib/types";
+import { int, oneOf, str } from "./shared";
 
 export type SaveResult =
   | { ok: true; mtime: number }
@@ -39,14 +43,15 @@ export async function saveNote(
   }
 }
 
-const TEMPLATES: Record<string, (title: string) => string> = {
+const TEMPLATES: Record<string, (title: string, date: string) => string> = {
   blank: (t) => `# ${t}\n\n`,
-  experiment: (t) =>
-    `---\ntype: experiment\ndate: ${today()}\n---\n\n# ${t}\n\n## 目的\n\n## 方法\n\n## 觀察\n\n## 結論與下一步\n\n`,
-  meeting: (t) =>
-    `---\ntype: meeting\ndate: ${today()}\n---\n\n# ${t}\n\n## 討論\n\n## 決議\n\n## 待辦\n- [ ] \n\n`,
-  paper: (t) =>
-    `---\ntype: paper-note\ndate: ${today()}\n---\n\n# ${t}\n\n## 問題\n\n## 方法\n\n## 結果\n\n## 對我的啟發\n\n`,
+  experiment: (t, d) =>
+    `---\ntype: experiment\ndate: ${d}\n---\n\n# ${t}\n\n## 目的\n\n## 方法\n\n## 觀察\n\n## 結論與下一步\n\n`,
+  meeting: (t, d) =>
+    `---\ntype: meeting\ndate: ${d}\n---\n\n# ${t}\n\n## 討論\n\n## 決議\n\n## 待辦\n- [ ] \n\n`,
+  idea: (t, d) => `---\ntype: idea\ndate: ${d}\n---\n\n# ${t}\n\n`,
+  paper: (t, d) =>
+    `---\ntype: paper-note\ndate: ${d}\n---\n\n# ${t}\n\n## 問題\n\n## 方法\n\n## 結果\n\n## 對我的啟發\n\n`,
 };
 
 export async function newNote(fd: FormData): Promise<{ ok: true; rel: string } | { ok: false; error: string }> {
@@ -56,7 +61,7 @@ export async function newNote(fd: FormData): Promise<{ ok: true; rel: string } |
     const folder = str(fd, "folder").replace(/^\/+|\/+$/g, "");
     const template = TEMPLATES[str(fd, "template")] ?? TEMPLATES.blank;
     const rel = path.posix.join(folder, safeFileName(title));
-    const created = createNote(rel, template(title));
+    const created = createNote(rel, template(title, today()));
 
     const noteId = noteIdFor(created);
     const linkTarget = str(fd, "link"); // "project:3"
@@ -121,4 +126,53 @@ export async function unlinkFolder(folder: string, entityType: string, entityId:
     "DELETE FROM note_folder_links WHERE folder = ? AND entity_type = ? AND entity_id = ?",
   ).run(folder, entityType, entityId);
   revalidatePath("/", "layout");
+}
+
+/**
+ * A research log entry is a note: `<folder>/<date> <title>.md` with the kind and
+ * date in frontmatter. It lands in the folder the topic follows (or starts
+ * following one named after the topic), so the topic page finds it there - as
+ * it does anything else dropped into that folder from Obsidian.
+ */
+export async function newLog(fd: FormData): Promise<{ ok: true; rel: string } | { ok: false; error: string }> {
+  try {
+    if (!vaultRoot()) return { ok: false, error: "尚未設定 Obsidian vault 路徑" };
+    const project = getProject(int(fd, "project_id") ?? 0);
+    if (!project) return { ok: false, error: "請選擇研究主題" };
+
+    const kind = oneOf<LogKind>(fd, "kind", LOG_KINDS.map((k) => k.key), "experiment");
+    const rawDate = str(fd, "date");
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : today();
+    const title = str(fd, "title") || "未命名紀錄";
+    const folder = str(fd, "folder").replace(/^\/+|\/+$/g, "") || defaultLogFolder(project);
+    const body = str(fd, "body");
+
+    const content = body
+      ? `---\ntype: ${kind}\ndate: ${date}\n---\n\n# ${title}\n\n${body}\n`
+      : TEMPLATES[kind](title, date);
+    const created = createNote(path.posix.join(folder, safeFileName(`${date} ${title}`)), content);
+
+    // Make sure the topic can see it: nothing to do if it already follows the
+    // folder; follow the folder if it follows none yet; otherwise link the note.
+    const followed = foldersFor("project", project.id);
+    const covered = followed.some((f) => folder === f || folder.startsWith(`${f}/`));
+    if (!covered && !followed.length) {
+      db.prepare(
+        "INSERT OR IGNORE INTO note_folder_links (folder, entity_type, entity_id) VALUES (?, 'project', ?)",
+      ).run(folder, project.id);
+    } else if (!covered) {
+      db.prepare(
+        "INSERT OR IGNORE INTO note_links (note_id, entity_type, entity_id) VALUES (?, 'project', ?)",
+      ).run(noteIdFor(created), project.id);
+    } else {
+      noteIdFor(created);
+    }
+
+    revalidatePath(`/research/${project.id}`);
+    revalidatePath("/notes");
+    revalidatePath("/", "layout");
+    return { ok: true, rel: created };
+  } catch (e) {
+    return { ok: false, error: e instanceof VaultError ? e.message : "建立紀錄失敗" };
+  }
 }
