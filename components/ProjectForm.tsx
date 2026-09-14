@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { deleteProject, saveProject } from "@/app/actions/research";
-import { COLORS, colorOf, type Project } from "@/lib/types";
+import { COLORS, PROJECT_KINDS, colorOf, type Project, type ProjectKind } from "@/lib/types";
 import { ConfirmButton } from "./ConfirmButton";
 import { Field, cx, inputClass } from "./ui";
 import { Modal, ModalActions } from "./ui/Modal";
@@ -22,9 +22,31 @@ export function ProjectForm({ project, trigger }: { project?: Project; trigger: 
 
 function Inner({ project, close }: { project?: Project; close: () => void }) {
   const [color, setColor] = useState(project?.color ?? "aqua");
+  const [kind, setKind] = useState<ProjectKind>(project?.kind ?? "research");
   return (
     <form action={(fd) => saveProject(fd).then(close)} className="space-y-3">
       {project ? <input type="hidden" name="id" value={project.id} /> : null}
+      <Field label="類別">
+        <div className="flex flex-wrap gap-1.5">
+          {PROJECT_KINDS.map((k) => (
+            <button
+              key={k.key}
+              type="button"
+              onClick={() => setKind(k.key)}
+              className={cx(
+                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+                kind === k.key
+                  ? "border-transparent bg-[var(--accent)] text-white"
+                  : "border-line text-dim hover:text-ink",
+              )}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <input type="hidden" name="kind" value={kind} />
+      </Field>
+
       <Field label="主題名稱">
         <input name="title" defaultValue={project?.title} required autoFocus className={inputClass} />
       </Field>

@@ -38,21 +38,42 @@ function fields(fd: FormData) {
   };
 }
 
+/**
+ * The "研究主題" field is one control covering three intents: "new" makes a
+ * topic named after the course, "" detaches, and a numeric id attaches an
+ * existing one. Returns the project id to store on the course.
+ */
+function resolveProject(choice: string, course: { name: string; color: string }): number | null {
+  if (choice === "new") {
+    return Number(
+      db
+        .prepare("INSERT INTO projects (title, color, kind) VALUES (?, ?, 'course')")
+        .run(course.name, course.color).lastInsertRowid,
+    );
+  }
+  const existing = Number(choice);
+  return Number.isInteger(existing) && existing > 0 ? existing : null;
+}
+
 export async function saveCourse(fd: FormData) {
   const id = int(fd, "id");
   const f = fields(fd);
+  const projectId = resolveProject(str(fd, "project_choice"), f);
+
   if (id) {
     db.prepare(
       `UPDATE courses SET code=@code, name=@name, instructor=@instructor, credits=@credits,
-       semester=@semester, color=@color, schedule_json=@schedule_json WHERE id=@id`,
-    ).run({ ...f, id });
+       semester=@semester, color=@color, schedule_json=@schedule_json, project_id=@project_id
+       WHERE id=@id`,
+    ).run({ ...f, project_id: projectId, id });
   } else {
     db.prepare(
-      `INSERT INTO courses (code, name, instructor, credits, semester, color, schedule_json)
-       VALUES (@code, @name, @instructor, @credits, @semester, @color, @schedule_json)`,
-    ).run(f);
+      `INSERT INTO courses (code, name, instructor, credits, semester, color, schedule_json, project_id)
+       VALUES (@code, @name, @instructor, @credits, @semester, @color, @schedule_json, @project_id)`,
+    ).run({ ...f, project_id: projectId });
   }
   revalidatePath("/courses");
+  revalidatePath("/research");
   revalidatePath("/");
 }
 

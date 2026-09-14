@@ -4,6 +4,7 @@ import { BackupToggle } from "@/components/BackupToggle";
 import { LogForm } from "@/components/LogForm";
 import { Markdown } from "@/components/Markdown";
 import { MilestoneTimeline } from "@/components/MilestoneTimeline";
+import { NewNoteButton } from "@/components/NewNoteButton";
 import { NoteLinkPicker } from "@/components/NoteLinkPicker";
 import { ProjectForm } from "@/components/ProjectForm";
 import { StartTimerButton } from "@/components/StartTimerButton";
@@ -125,7 +126,18 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </Card>
 
           <Card className="p-4">
-            <SectionTitle title="相關筆記" />
+            <SectionTitle
+              title="相關筆記"
+              action={
+                <NewNoteButton
+                  entityType="project"
+                  entityId={project.id}
+                  folders={noteFolders}
+                  vaultFolders={vaultFolders}
+                  backTo={{ href: `/research/${project.id}`, label: project.title }}
+                />
+              }
+            />
             <NoteLinkPicker
               entityType="project"
               entityId={project.id}

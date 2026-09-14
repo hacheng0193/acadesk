@@ -11,6 +11,8 @@ export type Course = {
   color: string;
   schedule_json: string;
   archived: number;
+  /** Research topic this course feeds into, if any. */
+  project_id: number | null;
 };
 
 export type Slot = { day: number; start: string; end: string; room?: string };
@@ -85,8 +87,21 @@ export type Project = {
   advisor: string;
   started_on: string | null;
   color: string;
+  kind: ProjectKind;
   backup_enabled: number;
 };
+
+export type ProjectKind = "research" | "course" | "side";
+
+export const PROJECT_KINDS: { key: ProjectKind; label: string }[] = [
+  { key: "research", label: "研究" },
+  { key: "course", label: "課程" },
+  { key: "side", label: "Side project" },
+];
+
+export const PROJECT_KIND_LABEL: Record<ProjectKind, string> = Object.fromEntries(
+  PROJECT_KINDS.map((k) => [k.key, k.label]),
+) as Record<ProjectKind, string>;
 
 export type Milestone = {
   id: number;

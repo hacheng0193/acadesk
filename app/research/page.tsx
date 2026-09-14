@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { BackupToggle } from "@/components/BackupToggle";
 import { ProjectForm } from "@/components/ProjectForm";
-import { Badge, Card, Empty, PageHeader, buttonClass } from "@/components/ui";
+import { Badge, Card, Empty, PageHeader, buttonClass, cx } from "@/components/ui";
 import { formatHours } from "@/lib/dates";
 import { listMilestones, listProjects } from "@/lib/queries/research";
 import { projectHours } from "@/lib/queries/time";
-import { colorOf } from "@/lib/types";
+import { PROJECT_KINDS, PROJECT_KIND_LABEL, colorOf, type ProjectKind } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +15,24 @@ const STATUS = {
   done: { label: "已完成", tone: "neutral" },
 } as const;
 
-export default function ResearchPage() {
-  const projects = listProjects();
+export default async function ResearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string }>;
+}) {
+  const { kind } = await searchParams;
+  const all = listProjects();
+  const active = PROJECT_KINDS.some((k) => k.key === kind) ? (kind as ProjectKind) : null;
+  const projects = active ? all.filter((p) => p.kind === active) : all;
+
+  const chips = [
+    { key: null, label: "全部", count: all.length },
+    ...PROJECT_KINDS.map((k) => ({
+      key: k.key,
+      label: k.label,
+      count: all.filter((p) => p.kind === k.key).length,
+    })),
+  ];
 
   return (
     <>
@@ -27,6 +43,26 @@ export default function ResearchPage() {
           <ProjectForm trigger={<span className={buttonClass({ variant: "primary" })}>＋ 新增主題</span>} />
         }
       />
+
+      {all.length ? (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <Link
+              key={c.key ?? "all"}
+              href={c.key ? `/research?kind=${c.key}` : "/research"}
+              className={cx(
+                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+                active === c.key
+                  ? "border-transparent bg-[var(--accent)] text-white"
+                  : "border-line text-dim hover:text-ink",
+              )}
+            >
+              {c.label}
+              <span className="ml-1 tabular-nums opacity-70">{c.count}</span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       {projects.length ? (
         <div className="grid gap-4 md:grid-cols-2">
@@ -48,6 +84,7 @@ export default function ResearchPage() {
                         {p.title}
                       </Link>
                       <Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge>
+                      <Badge>{PROJECT_KIND_LABEL[p.kind]}</Badge>
                       <BackupToggle
                         kind="project"
                         id={p.id}
@@ -87,7 +124,11 @@ export default function ResearchPage() {
           })}
         </div>
       ) : (
-        <Empty>還沒有研究主題。新增後就能記錄里程碑、實驗日誌與投入時數。</Empty>
+        <Empty>
+          {active
+            ? `沒有「${PROJECT_KIND_LABEL[active]}」類別的主題。`
+            : "還沒有研究主題。新增後就能記錄里程碑、實驗日誌與投入時數。"}
+        </Empty>
       )}
     </>
   );

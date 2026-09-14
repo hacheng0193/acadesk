@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS courses (
   color         TEXT NOT NULL DEFAULT 'blue',
   schedule_json TEXT NOT NULL DEFAULT '[]',
   archived      INTEGER NOT NULL DEFAULT 0,
+  -- A real reference, not a name match: renaming either side keeps the link.
+  project_id    INTEGER REFERENCES projects(id) ON DELETE SET NULL,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -49,6 +51,7 @@ CREATE TABLE IF NOT EXISTS projects (
   advisor        TEXT NOT NULL DEFAULT '',
   started_on     TEXT,
   color          TEXT NOT NULL DEFAULT 'aqua',
+  kind           TEXT NOT NULL DEFAULT 'research',
   backup_enabled INTEGER NOT NULL DEFAULT 1,
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );

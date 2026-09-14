@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { colorOf, WEEKDAYS, type Course, type Slot } from "@/lib/types";
 
 const START_HOUR = 8;
@@ -14,6 +15,8 @@ type Placed = {
   courseId: number;
   name: string;
   color: string;
+  /** Linked research topic, if the course has one. */
+  projectId: number | null;
   slot: Slot;
   /** Column within its overlap cluster, and how many columns that cluster has. */
   column: number;
@@ -29,7 +32,13 @@ function placeDay(courses: (Course & { slots: Slot[] })[], day: number): Placed[
     .flatMap((course) =>
       course.slots
         .filter((s) => s.day === day)
-        .map((slot) => ({ courseId: course.id, name: course.name, color: course.color, slot })),
+        .map((slot) => ({
+          courseId: course.id,
+          name: course.name,
+          color: course.color,
+          projectId: course.project_id,
+          slot,
+        })),
     )
     .sort((a, b) => minutes(a.slot.start) - minutes(b.slot.start));
 
@@ -100,21 +109,8 @@ export function Timetable({ courses }: { courses: (Course & { slots: Slot[] })[]
                   const y = top(minutes(p.slot.start));
                   const h = Math.max(22, top(minutes(p.slot.end)) - y);
                   const width = 100 / p.columns;
-                  return (
-                    <div
-                      key={`${p.courseId}-${i}`}
-                      className="absolute overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight text-white"
-                      style={{
-                        top: y,
-                        height: h,
-                        left: `calc(${p.column * width}% + 2px)`,
-                        width: `calc(${width}% - 4px)`,
-                        background: colorOf(p.color),
-                      }}
-                      title={`${p.name} ${p.slot.start}–${p.slot.end}${
-                        p.slot.room ? ` @${p.slot.room}` : ""
-                      }`}
-                    >
+                  const body = (
+                    <>
                       <div className="truncate font-medium">{p.name}</div>
                       {h > 36 ? (
                         <div className="truncate opacity-85">
@@ -122,6 +118,38 @@ export function Timetable({ courses }: { courses: (Course & { slots: Slot[] })[]
                           {p.slot.room ? ` · ${p.slot.room}` : ""}
                         </div>
                       ) : null}
+                    </>
+                  );
+                  const box = "absolute overflow-hidden rounded-md px-1.5 py-1 text-[11px] leading-tight text-white";
+                  const style = {
+                    top: y,
+                    height: h,
+                    left: `calc(${p.column * width}% + 2px)`,
+                    width: `calc(${width}% - 4px)`,
+                    background: colorOf(p.color),
+                  };
+                  const when = `${p.slot.start}–${p.slot.end}${p.slot.room ? ` @${p.slot.room}` : ""}`;
+
+                  // Only linked courses are clickable, so a block that does
+                  // nothing never looks like it should.
+                  return p.projectId ? (
+                    <Link
+                      key={`${p.courseId}-${i}`}
+                      href={`/research/${p.projectId}`}
+                      className={`${box} transition-opacity hover:opacity-85`}
+                      style={style}
+                      title={`${p.name} ${when}　·　點擊前往研究頁面`}
+                    >
+                      {body}
+                    </Link>
+                  ) : (
+                    <div
+                      key={`${p.courseId}-${i}`}
+                      className={box}
+                      style={style}
+                      title={`${p.name} ${when}`}
+                    >
+                      {body}
                     </div>
                   );
                 })}

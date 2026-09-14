@@ -1,15 +1,18 @@
+import Link from "next/link";
 import { deleteCourse, toggleArchiveCourse } from "@/app/actions/courses";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { CourseForm } from "@/components/CourseForm";
 import { Timetable } from "@/components/Timetable";
 import { Badge, Card, Empty, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
 import { listCourses, parseSlots } from "@/lib/queries/courses";
+import { listProjects } from "@/lib/queries/research";
 import { colorOf, WEEKDAYS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default function CoursesPage() {
   const all = listCourses(true);
+  const projects = listProjects();
   const active = all.filter((c) => !c.archived);
   const archived = all.filter((c) => c.archived);
   const withSlots = active.map((c) => ({ ...c, slots: parseSlots(c.schedule_json) }));
@@ -21,7 +24,10 @@ export default function CoursesPage() {
         title="課程"
         subtitle={`本學期 ${active.length} 門課　·　共 ${credits} 學分`}
         actions={
-          <CourseForm trigger={<span className={buttonClass({ variant: "primary" })}>＋ 新增課程</span>} />
+          <CourseForm
+            projects={projects}
+            trigger={<span className={buttonClass({ variant: "primary" })}>＋ 新增課程</span>}
+          />
         }
       />
 
@@ -65,8 +71,17 @@ export default function CoursesPage() {
               <div className="mt-3 flex items-center gap-1 border-t border-line pt-2">
                 <CourseForm
                   course={course}
+                  projects={projects}
                   trigger={<span className={buttonClass({ variant: "ghost", size: "sm" })}>編輯</span>}
                 />
+                {course.project_id ? (
+                  <Link
+                    href={`/research/${course.project_id}`}
+                    className={buttonClass({ variant: "ghost", size: "sm" })}
+                  >
+                    研究 →
+                  </Link>
+                ) : null}
                 <ConfirmButton
                   action={async () => {
                     "use server";

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { saveCourse } from "@/app/actions/courses";
-import { COLORS, WEEKDAYS, colorOf, type Course, type Slot } from "@/lib/types";
+import { COLORS, WEEKDAYS, colorOf, type Course, type Project, type Slot } from "@/lib/types";
 import type { NtuCourse } from "@/lib/ntu-course";
 import { NtuCourseImport } from "./NtuCourseImport";
 import { Button, Field, cx, inputClass } from "./ui";
@@ -17,7 +17,15 @@ function parse(json: string): Slot[] {
   }
 }
 
-export function CourseForm({ course, trigger }: { course?: Course; trigger: React.ReactNode }) {
+export function CourseForm({
+  course,
+  trigger,
+  projects,
+}: {
+  course?: Course;
+  trigger: React.ReactNode;
+  projects: Project[];
+}) {
   return (
     <Modal
       title={course ? "編輯課程" : "新增課程"}
@@ -25,12 +33,20 @@ export function CourseForm({ course, trigger }: { course?: Course; trigger: Reac
       triggerClassName="contents"
       width="max-w-xl"
     >
-      {(close) => <Inner course={course} close={close} />}
+      {(close) => <Inner course={course} projects={projects} close={close} />}
     </Modal>
   );
 }
 
-function Inner({ course, close }: { course?: Course; close: () => void }) {
+function Inner({
+  course,
+  projects,
+  close,
+}: {
+  course?: Course;
+  projects: Project[];
+  close: () => void;
+}) {
   const [slots, setSlots] = useState<Slot[]>(course ? parse(course.schedule_json) : []);
   const [color, setColor] = useState(course?.color ?? "blue");
   const formRef = useRef<HTMLFormElement>(null);
@@ -78,6 +94,29 @@ function Inner({ course, close }: { course?: Course; close: () => void }) {
           <input name="semester" defaultValue={course?.semester} className={inputClass} placeholder="114-1" />
         </Field>
       </div>
+
+      <Field
+        label="研究主題"
+        hint={
+          course?.project_id
+            ? "已連結，課程卡片與課表可以直接點過去"
+            : "建立後，課程卡片與課表上就能直接連到研究頁面"
+        }
+      >
+        <select
+          name="project_choice"
+          defaultValue={course?.project_id ? String(course.project_id) : course ? "" : "new"}
+          className={inputClass}
+        >
+          <option value="new">建立同名研究主題</option>
+          <option value="">不連結</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              連結到：{p.title}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       <Field label="顏色">
         <div className="flex gap-1.5">

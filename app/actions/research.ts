@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { today } from "@/lib/dates";
-import { COLORS, type Status } from "@/lib/types";
+import { COLORS, PROJECT_KINDS, type ProjectKind, type Status } from "@/lib/types";
 import { int, nullable, oneOf, str } from "./shared";
 
 function refresh(projectId?: number | null) {
@@ -21,16 +21,17 @@ export async function saveProject(fd: FormData) {
     advisor: str(fd, "advisor"),
     started_on: nullable(fd, "started_on"),
     color: oneOf(fd, "color", COLORS, "aqua"),
+    kind: oneOf<ProjectKind>(fd, "kind", PROJECT_KINDS.map((k) => k.key), "research"),
   };
   if (id) {
     db.prepare(
       `UPDATE projects SET title=@title, description_md=@description_md, status=@status,
-       advisor=@advisor, started_on=@started_on, color=@color WHERE id=@id`,
+       advisor=@advisor, started_on=@started_on, color=@color, kind=@kind WHERE id=@id`,
     ).run({ ...f, id });
   } else {
     db.prepare(
-      `INSERT INTO projects (title, description_md, status, advisor, started_on, color)
-       VALUES (@title, @description_md, @status, @advisor, @started_on, @color)`,
+      `INSERT INTO projects (title, description_md, status, advisor, started_on, color, kind)
+       VALUES (@title, @description_md, @status, @advisor, @started_on, @color, @kind)`,
     ).run(f);
   }
   refresh(id);
