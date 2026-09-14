@@ -48,6 +48,13 @@ export function formatDuration(seconds: number): string {
   return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 }
 
+/** Whole calendar days from one YYYY-MM-DD to another. */
+export function daysApart(fromDay: string, toDay: string): number {
+  const a = new Date(`${fromDay}T12:00:00`).getTime();
+  const b = new Date(`${toDay}T12:00:00`).getTime();
+  return Math.round((b - a) / 86_400_000);
+}
+
 /** Human label for a deadline, plus urgency bucket for colouring. */
 export function dueMeta(
   dueAt: string | null,
@@ -58,7 +65,9 @@ export function dueMeta(
   if (done) return { label: dueAt.slice(5, 16).replace("T", " "), tone: "none" };
   const due = new Date(dueAt);
   const now = new Date();
-  const days = Math.floor((due.getTime() - now.getTime()) / 86_400_000);
+  // Calendar days apart, not elapsed time: at 12:44 a deadline of 09-16 12:41
+  // is 1.998 elapsed days away, and flooring that called it "tomorrow".
+  const days = daysApart(today(), dueAt.slice(0, 10));
   const time = dueAt.length > 10 ? dueAt.slice(11, 16) : "";
   const stamp = `${dueAt.slice(5, 10)}${time ? ` ${time}` : ""}`;
   if (due < now) return { label: `已逾期 · ${stamp}`, tone: "overdue" };

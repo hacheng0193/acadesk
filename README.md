@@ -17,9 +17,9 @@ a single SQLite file you own.
 |---|---|
 | **Overview** | Today's classes, next 7 days, active milestones, today's hours, lab check-in |
 | **Schedule** | Assignments, exams, talks, weekly reports, meetings — board and calendar views, weekly/biweekly repeats |
-| **Courses** | Course records and a weekly timetable |
-| **Research** | Topics → milestone timeline, research log, linked papers and notes, cumulative hours |
-| **Notes** | Reads and writes your Obsidian vault directly — not a second copy |
+| **Courses** | Course records and a weekly timetable; can spin up a matching research topic and link straight to it |
+| **Research** | Topics → milestone timeline, research log, linked papers and notes, cumulative hours; categorised as research / course / side project and filterable |
+| **Notes** | Reads and writes your Obsidian vault directly — not a second copy; sidebar is a collapsible folder tree |
 | **Papers** | Paper list, tags, linked research topics, local PDFs |
 | **Time** | Timer sessions and lab check-in/out |
 | **Stats** | Weekly/monthly hours, split by topic, daily heatmap, attendance streak |
@@ -41,7 +41,17 @@ A today's-todo list and a research timer live in the sidebar on every page.
   changes in Calendar don't come back.
 - **Notes are just files in your vault.** Edit in the browser, see it in Obsidian
   immediately. If both sides changed, saving prompts you to pick — never a
-  silent overwrite.
+  silent overwrite. Notes open in preview, and "複製全文" copies the whole
+  Markdown source in one go.
+- **A topic can follow a whole folder, not just single notes.** The folder is
+  attached to the topic and resolved against the vault on every render, so a
+  note dropped into `daily/` tomorrow shows up on its own — no re-importing.
+  Picking a folder includes everything beneath it. "＋ 新增筆記" creates the
+  file in the vault, links it, and opens it.
+- **Courses can own a research topic.** Adding a course creates a same-named
+  topic by default (categorised as a course topic), reachable from the course
+  card or straight from the timetable block. It's a real foreign key, so
+  renaming either side keeps the link.
 
 ---
 
