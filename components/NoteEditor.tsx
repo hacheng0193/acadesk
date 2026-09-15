@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { saveNote } from "@/app/actions/notes";
+import { deleteNote, saveNote } from "@/app/actions/notes";
 import { Button, cx } from "./ui";
 
 type Mode = "edit" | "split" | "preview";
@@ -12,12 +13,15 @@ export function NoteEditor({
   initialMtime,
   previewHtml,
   obsidianUri,
+  afterDelete,
 }: {
   relPath: string;
   initialContent: string;
   initialMtime: number;
   previewHtml: string;
   obsidianUri: string;
+  /** Where to go once the note is gone. */
+  afterDelete: string;
 }) {
   const [content, setContent] = useState(initialContent);
   const [saved, setSaved] = useState(initialContent);
@@ -28,7 +32,9 @@ export function NoteEditor({
   const [conflict, setConflict] = useState<{ current: string; mtime: number } | null>(null);
   const [copied, setCopied] = useState<"" | "ok" | "fail">("");
   const [message, setMessage] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
 
   const dirty = content !== saved;
 
@@ -84,6 +90,23 @@ export function NoteEditor({
     }
     setCopied(ok ? "ok" : "fail");
     setTimeout(() => setCopied(""), 2200);
+  };
+
+  const remove = async () => {
+    const name = relPath.split("/").pop()?.replace(/\.md$/i, "");
+    const warning = dirty ? "\n\n目前還有未儲存的修改，也會一起捨棄。" : "";
+    if (!confirm(`刪除「${name}」？\n檔案會移到 vault 的 .trash 資料夾，並解除所有連結。${warning}`)) return;
+    setDeleting(true);
+    const result = await deleteNote(relPath);
+    if (!result.ok) {
+      setDeleting(false);
+      setStatus("error");
+      setMessage(result.error);
+      return;
+    }
+    // Skip the unsaved-edits prompt: the user just chose to throw them away.
+    setSaved(content);
+    router.push(afterDelete);
   };
 
   // ⌘S saves; the browser's own save dialog is never what you want here.
@@ -152,6 +175,15 @@ export function NoteEditor({
           <a href={obsidianUri} className="text-xs text-dim hover:text-ink" title="用 Obsidian 開啟">
             用 Obsidian 開啟 ↗
           </a>
+          <Button
+            variant="danger"
+            size="sm"
+            disabled={deleting}
+            onClick={() => void remove()}
+            title="移到 vault 的 .trash 資料夾"
+          >
+            {deleting ? "刪除中…" : "刪除"}
+          </Button>
           <Button
             variant="primary"
             size="sm"

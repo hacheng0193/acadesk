@@ -81,6 +81,7 @@ export default async function NotePage({
         initialMtime={note.mtime}
         previewHtml={previewHtml}
         obsidianUri={obsidianUri(note.rel)}
+        afterDelete={returnTo ?? "/notes"}
       />
     </>
   );

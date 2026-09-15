@@ -10,6 +10,7 @@ import {
   noteIdFor,
   safeFileName,
   syncNoteIndex,
+  trashNote,
   vaultRoot,
   writeNote,
 } from "@/lib/vault";
@@ -40,6 +41,28 @@ export async function saveNote(
     return { ok: true, mtime: result.mtime };
   } catch (e) {
     return { ok: false, error: e instanceof VaultError ? e.message : "存檔失敗" };
+  }
+}
+
+/** Move the note to the vault's trash and forget its links and search entry. */
+export async function deleteNote(relPath: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const rel = trashNote(relPath);
+    db.transaction(() => {
+      const row = db.prepare("SELECT id FROM notes WHERE rel_path = ?").get(rel) as
+        | { id: number }
+        | undefined;
+      if (row) {
+        db.prepare("DELETE FROM note_links WHERE note_id = ?").run(row.id);
+        db.prepare("DELETE FROM notes WHERE id = ?").run(row.id);
+      }
+      db.prepare("DELETE FROM search_index WHERE kind = 'note' AND ref_key = ?").run(rel);
+    })();
+    revalidatePath("/notes");
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof VaultError ? e.message : "刪除失敗" };
   }
 }
 

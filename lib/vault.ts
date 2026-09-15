@@ -105,6 +105,23 @@ export function createNote(relPath: string, content: string): string {
   return rel;
 }
 
+/**
+ * Move a note into the vault's `.trash` folder - the same place Obsidian's
+ * "move to Obsidian trash" uses - so a mistaken delete can be undone by hand.
+ * Obsidian's trash is flat, so a name clash gets a timestamp suffix.
+ */
+export function trashNote(relPath: string): string {
+  const { root, abs, rel } = resolveInVault(relPath);
+  if (!fs.existsSync(abs)) throw new VaultError("找不到這份筆記");
+  const trash = path.join(root, ".trash");
+  fs.mkdirSync(trash, { recursive: true });
+  const base = path.basename(rel).replace(/\.md$/i, "");
+  let target = path.join(trash, `${base}.md`);
+  if (fs.existsSync(target)) target = path.join(trash, `${base} ${Date.now()}.md`);
+  fs.renameSync(abs, target);
+  return rel;
+}
+
 /** Refresh the `notes` index from disk. Cheap enough to run on every /notes visit. */
 export function syncNoteIndex(): number {
   const root = vaultRoot();
