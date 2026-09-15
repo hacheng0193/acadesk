@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { saveAssignment } from "@/app/actions/assignments";
 import { newNote } from "@/app/actions/notes";
 import { savePaper } from "@/app/actions/papers";
 import { today } from "@/lib/dates";
 import { ITEM_KINDS, type Course, type Project } from "@/lib/types";
 import { LogForm, type LogTarget } from "./LogForm";
+import { MetadataImport, fillPaperFields } from "./MetadataImport";
 import { SearchResults } from "./SearchResults";
 import { Modal, ModalActions } from "./ui/Modal";
 import { Field, cx, inputClass } from "./ui";
@@ -35,6 +36,7 @@ export function QuickAdd({
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
+  const paperFormRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -187,7 +189,10 @@ export function QuickAdd({
             {tab === "log" ? <LogForm projects={logTargets} compact onDone={close} /> : null}
 
             {tab === "paper" ? (
-              <form onSubmit={submit(savePaper)} className="space-y-3">
+              <form ref={paperFormRef} onSubmit={submit(savePaper)} className="space-y-3">
+                <MetadataImport onFill={(meta) => fillPaperFields(paperFormRef.current, meta)} />
+                {/* No room for a DOI box here, but a parsed DOI should still be saved. */}
+                <input type="hidden" name="doi" />
                 <Field label="標題">
                   <input name="title" required className={inputClass} />
                 </Field>

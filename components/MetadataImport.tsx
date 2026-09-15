@@ -11,6 +11,24 @@ const SOURCE_LABEL: Record<PaperMeta["source"], string> = {
   citation: "引用文字",
 };
 
+/** Fill a paper form's uncontrolled fields by name, leaving blanks untouched. */
+export function fillPaperFields(form: HTMLFormElement | null, meta: PaperMeta) {
+  if (!form) return;
+  const set = (name: string, value: string) => {
+    const el = form.elements.namedItem(name);
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      if (value) el.value = value;
+    }
+  };
+  set("title", meta.title);
+  set("authors", meta.authors);
+  set("venue", meta.venue);
+  set("year", meta.year ? String(meta.year) : "");
+  set("doi", meta.doi);
+  set("url", meta.url);
+  set("tags", meta.keywords.join(", "));
+}
+
 /**
  * Paste a DOI / arXiv id / BibTeX entry and fill the form from it.
  *

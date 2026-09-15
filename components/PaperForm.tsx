@@ -5,7 +5,7 @@ import { deletePaper, savePaper } from "@/app/actions/papers";
 import type { PaperMeta } from "@/lib/metadata";
 import { splitList, type PaperRow, type Project } from "@/lib/types";
 import { ConfirmButton } from "./ConfirmButton";
-import { MetadataImport } from "./MetadataImport";
+import { MetadataImport, fillPaperFields } from "./MetadataImport";
 import { PdfAttachment } from "./PdfAttachment";
 import { Field, cx, inputClass } from "./ui";
 import { Modal, ModalActions } from "./ui/Modal";
@@ -49,23 +49,7 @@ function Inner({
   const linked = new Set(paper ? splitList(paper.projects) : []);
 
   /** Uncontrolled fields, so fill them straight on the DOM nodes. */
-  const fill = (meta: PaperMeta) => {
-    const form = formRef.current;
-    if (!form) return;
-    const set = (name: string, value: string) => {
-      const el = form.elements.namedItem(name);
-      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-        if (value) el.value = value;
-      }
-    };
-    set("title", meta.title);
-    set("authors", meta.authors);
-    set("venue", meta.venue);
-    set("year", meta.year ? String(meta.year) : "");
-    set("doi", meta.doi);
-    set("url", meta.url);
-    set("tags", meta.keywords.join(", "));
-  };
+  const fill = (meta: PaperMeta) => fillPaperFields(formRef.current, meta);
 
   return (
     <form ref={formRef} action={(fd) => savePaper(fd).then(close)} className="space-y-3">
