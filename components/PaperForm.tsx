@@ -64,6 +64,7 @@ function Inner({
     set("year", meta.year ? String(meta.year) : "");
     set("doi", meta.doi);
     set("url", meta.url);
+    set("tags", meta.keywords.join(", "));
   };
 
   return (

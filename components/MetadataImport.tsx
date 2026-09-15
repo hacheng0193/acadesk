@@ -8,6 +8,7 @@ const SOURCE_LABEL: Record<PaperMeta["source"], string> = {
   crossref: "Crossref",
   arxiv: "arXiv",
   bibtex: "BibTeX",
+  citation: "引用文字",
 };
 
 /**
@@ -65,7 +66,7 @@ export function MetadataImport({ onFill }: { onFill: (meta: PaperMeta) => void }
             }
           }}
           rows={query.includes("\n") ? 4 : 1}
-          placeholder="貼上 DOI、arXiv 編號或整段 BibTeX，按 Enter"
+          placeholder="貼上 DOI、arXiv 編號、BibTeX 或引用文字，按 Enter"
           className={cx(inputClass, "flex-1 resize-none py-1.5 text-xs")}
         />
         <Button type="button" size="sm" variant="primary" disabled={pending} onClick={run}>
@@ -80,7 +81,7 @@ export function MetadataImport({ onFill }: { onFill: (meta: PaperMeta) => void }
         </p>
       ) : null}
       <p className="mt-2 text-[11px] leading-relaxed text-dim">
-        DOI 與 arXiv 會連到外部服務查詢（送出的只有編號本身）；BibTeX 完全在本機解析。
+        DOI 與 arXiv 會連到外部服務查詢（送出的只有編號本身）；BibTeX 與引用文字完全在本機解析，keywords 會填進標籤。
       </p>
     </div>
   );
