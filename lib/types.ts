@@ -237,7 +237,13 @@ export function colorOf(name: string | null | undefined): string {
 
 export const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
-export type PaperRow = Paper & { tags: string; projects: string };
+export type PaperRow = Paper & {
+  tags: string;
+  /** Linked topic titles, for display. */
+  projects: string;
+  /** The same links as ids, for the form - titles are not unique. */
+  project_ids: string;
+};
 
 /** Split a `group_concat(..., '|')` column back into a list. */
 export function splitList(v: string): string[] {

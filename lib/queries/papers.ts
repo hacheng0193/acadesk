@@ -6,7 +6,9 @@ const SELECT = `
     COALESCE((SELECT group_concat(t.name, '|') FROM paper_tags pt
               JOIN tags t ON t.id = pt.tag_id WHERE pt.paper_id = p.id), '') AS tags,
     COALESCE((SELECT group_concat(pr.title, '|') FROM paper_projects pp
-              JOIN projects pr ON pr.id = pp.project_id WHERE pp.paper_id = p.id), '') AS projects
+              JOIN projects pr ON pr.id = pp.project_id WHERE pp.paper_id = p.id), '') AS projects,
+    COALESCE((SELECT group_concat(pp.project_id, '|') FROM paper_projects pp
+              WHERE pp.paper_id = p.id), '') AS project_ids
   FROM papers p
 `;
 
