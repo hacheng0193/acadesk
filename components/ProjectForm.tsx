@@ -2,9 +2,17 @@
 
 import { useState } from "react";
 import { deleteProject, saveProject } from "@/app/actions/research";
-import { COLORS, PROJECT_KINDS, colorOf, type Project, type ProjectKind } from "@/lib/types";
+import {
+  COLORS,
+  PROJECT_KINDS,
+  colorOf,
+  parseLinks,
+  type Project,
+  type ProjectKind,
+  type ProjectLink,
+} from "@/lib/types";
 import { ConfirmButton } from "./ConfirmButton";
-import { Field, cx, inputClass } from "./ui";
+import { Button, Field, cx, inputClass } from "./ui";
 import { Modal, ModalActions } from "./ui/Modal";
 
 export function ProjectForm({ project, trigger }: { project?: Project; trigger: React.ReactNode }) {
@@ -23,6 +31,7 @@ export function ProjectForm({ project, trigger }: { project?: Project; trigger: 
 function Inner({ project, close }: { project?: Project; close: () => void }) {
   const [color, setColor] = useState(project?.color ?? "aqua");
   const [kind, setKind] = useState<ProjectKind>(project?.kind ?? "research");
+  const [links, setLinks] = useState<ProjectLink[]>(parseLinks(project?.links_json));
   return (
     <form action={(fd) => saveProject(fd).then(close)} className="space-y-3">
       {project ? <input type="hidden" name="id" value={project.id} /> : null}
@@ -83,6 +92,54 @@ function Inner({ project, close }: { project?: Project; close: () => void }) {
         </div>
         <input type="hidden" name="color" value={color} />
       </Field>
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-xs font-medium text-dim">常用連結</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setLinks([...links, { label: "", url: "" }])}
+          >
+            ＋ 新增連結
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {links.map((link, i) => (
+            <div key={i} className="flex items-center gap-2">
+              {/* Controlled: uncontrolled rows keep their old DOM values when
+                  one in the middle is removed. */}
+              <input
+                name="link_label"
+                value={link.label}
+                onChange={(e) => setLinks(links.map((l, j) => (j === i ? { ...l, label: e.target.value } : l)))}
+                placeholder="名稱（課程網頁…）"
+                className={cx(inputClass, "w-40 shrink-0")}
+              />
+              <input
+                name="link_url"
+                value={link.url}
+                onChange={(e) => setLinks(links.map((l, j) => (j === i ? { ...l, url: e.target.value } : l)))}
+                placeholder="https://..."
+                className={cx(inputClass, "min-w-0 flex-1")}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setLinks(links.filter((_, j) => j !== i))}
+                aria-label="移除連結"
+              >
+                ×
+              </Button>
+            </div>
+          ))}
+          {links.length === 0 ? (
+            <p className="text-xs text-dim">課程網頁、作業系統、dashboard… 加進來就能從主題頁一鍵開啟。</p>
+          ) : null}
+        </div>
+      </div>
+
       <Field label="描述（Markdown）">
         <textarea
           name="description_md"

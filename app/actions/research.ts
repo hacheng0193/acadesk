@@ -2,8 +2,36 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { COLORS, PROJECT_KINDS, type ProjectKind, type Status } from "@/lib/types";
+import {
+  COLORS,
+  PROJECT_KINDS,
+  parseLinks,
+  type ProjectKind,
+  type ProjectLink,
+  type Status,
+} from "@/lib/types";
 import { int, nullable, oneOf, str } from "./shared";
+
+/**
+ * A bare `lab.example.com` is stored as https:// so the anchor leaves the app
+ * instead of resolving against /research.
+ */
+function normalizeUrl(url: string): string {
+  return /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`;
+}
+
+/** Links arrive as parallel arrays from the repeatable rows in the project form. */
+function readLinks(fd: FormData): ProjectLink[] {
+  const labels = fd.getAll("link_label").map(String);
+  const urls = fd.getAll("link_url").map(String);
+  const links: ProjectLink[] = [];
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i].trim();
+    if (!url) continue;
+    links.push({ label: (labels[i] ?? "").trim(), url: normalizeUrl(url) });
+  }
+  return links;
+}
 
 function refresh(projectId?: number | null) {
   revalidatePath("/research");
@@ -21,19 +49,38 @@ export async function saveProject(fd: FormData) {
     started_on: nullable(fd, "started_on"),
     color: oneOf(fd, "color", COLORS, "aqua"),
     kind: oneOf<ProjectKind>(fd, "kind", PROJECT_KINDS.map((k) => k.key), "research"),
+    links_json: JSON.stringify(readLinks(fd)),
   };
   if (id) {
     db.prepare(
       `UPDATE projects SET title=@title, description_md=@description_md, status=@status,
-       advisor=@advisor, started_on=@started_on, color=@color, kind=@kind WHERE id=@id`,
+       advisor=@advisor, started_on=@started_on, color=@color, kind=@kind,
+       links_json=@links_json WHERE id=@id`,
     ).run({ ...f, id });
   } else {
     db.prepare(
-      `INSERT INTO projects (title, description_md, status, advisor, started_on, color, kind)
-       VALUES (@title, @description_md, @status, @advisor, @started_on, @color, @kind)`,
+      `INSERT INTO projects (title, description_md, status, advisor, started_on, color, kind, links_json)
+       VALUES (@title, @description_md, @status, @advisor, @started_on, @color, @kind, @links_json)`,
     ).run(f);
   }
   refresh(id);
+}
+
+/** Append one link without opening the whole topic form. */
+export async function addProjectLink(fd: FormData) {
+  const projectId = int(fd, "project_id");
+  const url = str(fd, "url");
+  if (!projectId || !url) return;
+  const row = db.prepare("SELECT links_json FROM projects WHERE id = ?").get(projectId) as
+    | { links_json: string }
+    | undefined;
+  if (!row) return;
+  const links: ProjectLink[] = [
+    ...parseLinks(row.links_json),
+    { label: str(fd, "label"), url: normalizeUrl(url) },
+  ];
+  db.prepare("UPDATE projects SET links_json = ? WHERE id = ?").run(JSON.stringify(links), projectId);
+  refresh(projectId);
 }
 
 export async function deleteProject(id: number) {

@@ -26,6 +26,7 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   { table: "time_sessions", column: "reviewed", definition: "INTEGER NOT NULL DEFAULT 0" },
   { table: "courses", column: "project_id", definition: "INTEGER REFERENCES projects(id)" },
   { table: "projects", column: "kind", definition: "TEXT NOT NULL DEFAULT 'research'" },
+  { table: "projects", column: "links_json", definition: "TEXT NOT NULL DEFAULT '[]'" },
 ];
 
 function migrate(database: Database.Database): void {

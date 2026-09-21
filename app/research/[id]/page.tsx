@@ -7,6 +7,7 @@ import { MilestoneTimeline } from "@/components/MilestoneTimeline";
 import { NewNoteButton } from "@/components/NewNoteButton";
 import { NoteLinkPicker } from "@/components/NoteLinkPicker";
 import { ProjectForm } from "@/components/ProjectForm";
+import { ProjectLinkForm } from "@/components/ProjectLinkForm";
 import { StartTimerButton } from "@/components/StartTimerButton";
 import { Badge, Card, Empty, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
 import { formatHours } from "@/lib/dates";
@@ -15,7 +16,7 @@ import { papersForProject } from "@/lib/queries/papers";
 import { defaultLogFolder, logsFor } from "@/lib/queries/logs";
 import { getProject, listMilestones, listProjects } from "@/lib/queries/research";
 import { projectHours } from "@/lib/queries/time";
-import { LOG_KIND, colorOf } from "@/lib/types";
+import { LOG_KIND, colorOf, linkHost, parseLinks } from "@/lib/types";
 import { listFolders } from "@/lib/vault";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export default async function ProjectPage({
   const noteFolders = foldersFor("project", project.id);
   const vaultFolders = listFolders();
   const hours = projectHours(project.id);
+  const links = parseLinks(project.links_json);
   const allProjects = listProjects();
 
   return (
@@ -76,6 +78,10 @@ export default async function ProjectPage({
             <LogForm
               projects={allProjects.map((p) => ({ id: p.id, title: p.title, folder: defaultLogFolder(p) }))}
               defaultProjectId={project.id}
+            />
+            <ProjectLinkForm
+              projectId={project.id}
+              trigger={<span className={buttonClass({ variant: "outline" })}>＋ 連結</span>}
             />
             <ProjectForm
               project={project}
@@ -135,6 +141,41 @@ export default async function ProjectPage({
         </div>
 
         <div className="space-y-6">
+          <Card className="p-4">
+            <SectionTitle
+              title="常用連結"
+              hint={links.length ? `${links.length} 個` : undefined}
+              action={
+                <ProjectLinkForm
+                  projectId={project.id}
+                  trigger={<span className="text-xs text-dim hover:text-ink">＋ 新增連結</span>}
+                />
+              }
+            />
+            {links.length ? (
+              <ul className="space-y-1.5 text-sm">
+                {links.map((l, i) => (
+                  <li key={i}>
+                    <a
+                      href={l.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="flex items-baseline gap-2 hover:underline"
+                    >
+                      <span className="truncate">{l.label || linkHost(l.url)}</span>
+                      <span className="shrink-0 text-[10px] text-dim">↗</span>
+                    </a>
+                    {l.label ? (
+                      <p className="truncate text-[11px] text-dim">{linkHost(l.url)}</p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-dim">課程網頁、作業系統、dashboard… 加進來就能一鍵開啟。</p>
+            )}
+          </Card>
+
           <Card className="p-4">
             <SectionTitle title="里程碑" />
             <MilestoneTimeline projectId={project.id} milestones={milestones} />

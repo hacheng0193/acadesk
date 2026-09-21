@@ -5,7 +5,14 @@ import { Badge, Card, Empty, PageHeader, buttonClass, cx } from "@/components/ui
 import { formatHours } from "@/lib/dates";
 import { listMilestones, listProjects } from "@/lib/queries/research";
 import { projectHours } from "@/lib/queries/time";
-import { PROJECT_KINDS, PROJECT_KIND_LABEL, colorOf, type ProjectKind } from "@/lib/types";
+import {
+  PROJECT_KINDS,
+  PROJECT_KIND_LABEL,
+  colorOf,
+  linkHost,
+  parseLinks,
+  type ProjectKind,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +78,7 @@ export default async function ResearchPage({
             const done = milestones.filter((m) => m.status === "done").length;
             const progress = milestones.length ? (done / milestones.length) * 100 : 0;
             const next = milestones.find((m) => m.status !== "done");
+            const links = parseLinks(p.links_json);
             return (
               <Card key={p.id} className="p-4 transition-shadow hover:shadow-md">
                 <div className="flex items-start gap-3">
@@ -111,6 +119,22 @@ export default async function ResearchPage({
                     />
                   </div>
                 </div>
+
+                {links.length ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {links.map((l, i) => (
+                      <a
+                        key={i}
+                        href={l.url}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="max-w-[12rem] truncate rounded-lg border border-line px-2 py-0.5 text-[11px] text-dim transition-colors hover:text-ink"
+                      >
+                        {l.label || linkHost(l.url)} ↗
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
 
                 {next ? (
                   <div className="mt-3 truncate text-xs text-dim">

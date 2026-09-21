@@ -89,7 +89,33 @@ export type Project = {
   color: string;
   kind: ProjectKind;
   backup_enabled: number;
+  /** JSON array of ProjectLink; read it with parseLinks(). */
+  links_json: string;
 };
+
+/** A handy link pinned to a topic: course page, submission site, dashboard... */
+export type ProjectLink = { label: string; url: string };
+
+export function parseLinks(json: string | null | undefined): ProjectLink[] {
+  try {
+    const v = JSON.parse(json || "[]");
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter((l): l is ProjectLink => !!l && typeof l.url === "string" && !!l.url)
+      .map((l) => ({ label: String(l.label ?? "").trim(), url: l.url }));
+  } catch {
+    return [];
+  }
+}
+
+/** Host of a link, for labelling rows the user left unnamed. */
+export function linkHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 
 export type ProjectKind = "research" | "course" | "side";
 

@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS projects (
   color          TEXT NOT NULL DEFAULT 'aqua',
   kind           TEXT NOT NULL DEFAULT 'research',
   backup_enabled INTEGER NOT NULL DEFAULT 1,
+  -- Handy links for the topic (course page, submission site, dashboard...),
+  -- as a JSON array of {label, url}.
+  links_json     TEXT NOT NULL DEFAULT '[]',
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
