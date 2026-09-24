@@ -1,6 +1,49 @@
-import { marked } from "marked";
+import katex from "katex";
+import { marked, type TokenizerAndRendererExtension } from "marked";
 
 marked.setOptions({ gfm: true, breaks: true });
+
+/**
+ * Math is rendered by KaTeX before Markdown ever sees it. It has to be a marked
+ * extension rather than a pre-pass over the text: `\[`, `\]` and `\\` are all
+ * Markdown escapes, so a formula that reaches the default tokenizer comes back
+ * with its delimiters and line breaks eaten. Extensions are tried first, and
+ * fenced/inline code still wins because marked tokenizes that as code.
+ */
+function renderMath(tex: string, displayMode: boolean): string {
+  // throwOnError: false renders a malformed formula in red instead of blowing
+  // up the whole note - a half-typed equation is normal while writing.
+  return katex.renderToString(tex, { displayMode, throwOnError: false });
+}
+
+const blockMath: TokenizerAndRendererExtension = {
+  name: "blockMath",
+  level: "block",
+  start: (src) => src.match(/\$\$|\\\[/)?.index,
+  tokenizer(src) {
+    const match = /^(?:\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\])[ \t]*(?:\n+|$)/.exec(src);
+    if (!match) return undefined;
+    return { type: "blockMath", raw: match[0], text: (match[1] ?? match[2]).trim() };
+  },
+  renderer: (token) => renderMath(token.text, true),
+};
+
+const inlineMath: TokenizerAndRendererExtension = {
+  name: "inlineMath",
+  level: "inline",
+  start: (src) => src.match(/\$(?!\s)|\\\(/)?.index,
+  tokenizer(src) {
+    // `$` only opens a formula when it hugs its contents on both sides and the
+    // closing one is not followed by a digit, so prices like "$5 to $10" and a
+    // lone "$" stay plain text.
+    const match = /^(?:\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)|\\\(([\s\S]+?)\\\))/.exec(src);
+    if (!match) return undefined;
+    return { type: "inlineMath", raw: match[0], text: (match[1] ?? match[2]).trim() };
+  },
+  renderer: (token) => renderMath(token.text, false),
+};
+
+marked.use({ extensions: [blockMath, inlineMath] });
 
 /**
  * Minimal scrub of raw HTML. These notes are the user's own files, so this is a

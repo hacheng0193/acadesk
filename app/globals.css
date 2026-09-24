@@ -143,6 +143,10 @@ body {
 .prose-note th { background: var(--surface-2); }
 .prose-note img { border-radius: 8px; }
 .prose-note input[type="checkbox"] { margin-right: 0.4em; }
+/* KaTeX: a wide equation scrolls in its own box rather than stretching the page,
+   and its own <code>-ish spans must not pick up the code chip styling above. */
+.prose-note .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2em 0; }
+.prose-note .katex { font-size: 1.05em; }
 
 /* Scrollbars that don't shout. */
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
