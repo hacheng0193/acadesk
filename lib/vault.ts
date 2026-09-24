@@ -34,13 +34,99 @@ export function resolveInVault(relPath: string): { root: string; abs: string; re
   return { root, abs, rel: path.relative(root, abs) };
 }
 
+/** Image formats a note can embed, and the content type each is served as. */
+const IMAGE_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".avif": "image/avif",
+  ".bmp": "image/bmp",
+};
+
+/**
+ * The same guard as resolveInVault, for images instead of notes. Kept separate
+ * so the note paths cannot be talked into serving arbitrary files, and these
+ * cannot be talked into overwriting a note.
+ */
+export function resolveImageInVault(relPath: string): { abs: string; rel: string; type: string } {
+  const root = vaultRoot();
+  if (!root) throw new VaultError("尚未設定 Obsidian vault 路徑");
+
+  const rel = relPath.replace(/^\/+/, "");
+  if (!rel || rel.includes("\0")) throw new VaultError("無效的檔案路徑");
+  const type = IMAGE_TYPES[path.extname(rel).toLowerCase()];
+  if (!type) throw new VaultError("只能存取圖片檔案");
+
+  const abs = path.resolve(root, rel);
+  if (!abs.startsWith(root + path.sep)) throw new VaultError("路徑超出 vault 範圍");
+  return { abs, rel: path.relative(root, abs), type };
+}
+
+/**
+ * Where pasted images are written. Obsidian resolves an embed by file name
+ * wherever it sits in the vault, so this only decides where new ones land -
+ * default matches the folder this vault already keeps its pasted images in.
+ */
+export function attachmentFolder(): string {
+  return (getSetting("attachment_folder") || "png").replace(/^\/+|\/+$/g, "");
+}
+
+/** Every image in the vault, by file name and by path, both lowercased. */
+export function imageIndex(): Map<string, string> {
+  const root = vaultRoot();
+  const index = new Map<string, string>();
+  if (!root) return index;
+  for (const rel of walkVault(root, (name) => !!IMAGE_TYPES[path.extname(name).toLowerCase()])) {
+    index.set(rel.toLowerCase(), rel);
+    // First one wins: same-named files elsewhere in the vault are rare, and
+    // Obsidian resolves a bare name the same loose way.
+    const base = path.basename(rel).toLowerCase();
+    if (!index.has(base)) index.set(base, rel);
+  }
+  return index;
+}
+
+/** Look an embed's target up in the vault, by bare name or by path. */
+export function resolveVaultImage(name: string, index = imageIndex()): string | null {
+  const key = name.replace(/^\.?\//, "").toLowerCase();
+  return index.get(key) ?? index.get(path.basename(key)) ?? null;
+}
+
+/**
+ * Write a pasted image into the attachment folder, named the way Obsidian
+ * names its own pastes so the vault stays consistent about it.
+ */
+export function saveImage(data: Buffer, ext: string, when = new Date()): string {
+  const root = vaultRoot();
+  if (!root) throw new VaultError("尚未設定 Obsidian vault 路徑");
+  const suffix = ext.toLowerCase();
+  if (!IMAGE_TYPES[suffix]) throw new VaultError("不支援的圖片格式");
+
+  const folder = attachmentFolder();
+  const dir = path.resolve(root, folder);
+  if (dir !== root && !dir.startsWith(root + path.sep)) throw new VaultError("路徑超出 vault 範圍");
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp =
+    `${when.getFullYear()}${pad(when.getMonth() + 1)}${pad(when.getDate())}` +
+    `${pad(when.getHours())}${pad(when.getMinutes())}${pad(when.getSeconds())}`;
+  const base = `Pasted image ${stamp}`;
+
+  let name = `${base}${suffix}`;
+  for (let n = 1; fs.existsSync(path.join(dir, name)); n++) name = `${base}-${n}${suffix}`;
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, name), data);
+  return path.relative(root, path.join(dir, name));
+}
+
 export type VaultFile = { rel: string; title: string; mtime: number; size: number };
 
-export function listNotes(): VaultFile[] {
-  const root = vaultRoot();
-  if (!root) return [];
-
-  const out: VaultFile[] = [];
+/** Vault-relative paths of every file the filter keeps, hidden folders aside. */
+function walkVault(root: string, keep: (name: string) => boolean): string[] {
+  const out: string[] = [];
   const walk = (dir: string) => {
     let entries: fs.Dirent[];
     try {
@@ -51,20 +137,28 @@ export function listNotes(): VaultFile[] {
     for (const entry of entries) {
       if (IGNORED.has(entry.name) || entry.name.startsWith(".")) continue;
       const abs = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(abs);
-      } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
-        const stat = fs.statSync(abs);
-        out.push({
-          rel: path.relative(root, abs),
-          title: entry.name.replace(/\.md$/i, ""),
-          mtime: Math.floor(stat.mtimeMs),
-          size: stat.size,
-        });
-      }
+      if (entry.isDirectory()) walk(abs);
+      else if (entry.isFile() && keep(entry.name)) out.push(path.relative(root, abs));
     }
   };
   walk(root);
+  return out;
+}
+
+export function listNotes(): VaultFile[] {
+  const root = vaultRoot();
+  if (!root) return [];
+
+  const out: VaultFile[] = [];
+  for (const rel of walkVault(root, (name) => name.toLowerCase().endsWith(".md"))) {
+    const stat = fs.statSync(path.join(root, rel));
+    out.push({
+      rel,
+      title: path.basename(rel).replace(/\.md$/i, ""),
+      mtime: Math.floor(stat.mtimeMs),
+      size: stat.size,
+    });
+  }
   out.sort((a, b) => b.mtime - a.mtime);
   return out;
 }

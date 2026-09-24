@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { deleteNote, saveNote } from "@/app/actions/notes";
+import { attachImage, deleteNote, saveNote } from "@/app/actions/notes";
 import { Button, cx } from "./ui";
 
 type Mode = "edit" | "split" | "preview";
@@ -33,6 +33,7 @@ export function NoteEditor({
   const [copied, setCopied] = useState<"" | "ok" | "fail">("");
   const [message, setMessage] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
 
@@ -92,6 +93,48 @@ export function NoteEditor({
     setTimeout(() => setCopied(""), 2200);
   };
 
+  /**
+   * Drop text in where the cursor is, the way typing would, so an embed lands
+   * mid-sentence instead of at the end of the note.
+   */
+  const insertAtCursor = (text: string) => {
+    const area = areaRef.current;
+    const at = area ? area.selectionStart : content.length;
+    const end = area ? area.selectionEnd : content.length;
+    const next = content.slice(0, at) + text + content.slice(end);
+    setContent(next);
+    setStatus("idle");
+    // React rewrites the value, so the caret has to be put back afterwards.
+    requestAnimationFrame(() => {
+      if (!area) return;
+      area.focus();
+      area.selectionStart = area.selectionEnd = at + text.length;
+    });
+  };
+
+  /**
+   * Copy-paste an image straight into the note: the file is written into the
+   * vault's attachment folder and the note gets an Obsidian-style embed, so
+   * the same picture shows up on both sides.
+   */
+  const attach = async (file: File) => {
+    setUploading(true);
+    const fd = new FormData();
+    fd.set("file", file);
+    const result = await attachImage(fd);
+    setUploading(false);
+    if (!result.ok) {
+      setStatus("error");
+      setMessage(result.error);
+      return;
+    }
+    setMessage("");
+    insertAtCursor(`\n${result.embed}\n`);
+  };
+
+  const imageFrom = (data: DataTransfer | null): File | null =>
+    [...(data?.files ?? [])].find((f) => f.type.startsWith("image/")) ?? null;
+
   const remove = async () => {
     const name = relPath.split("/").pop()?.replace(/\.md$/i, "");
     const warning = dirty ? "\n\n目前還有未儲存的修改，也會一起捨棄。" : "";
@@ -150,7 +193,9 @@ export function NoteEditor({
         </div>
 
         <span className="ml-2 text-xs text-dim">
-          {status === "saving"
+          {uploading
+            ? "上傳圖片中…"
+            : status === "saving"
             ? "儲存中…"
             : dirty
               ? "未儲存"
@@ -243,6 +288,21 @@ export function NoteEditor({
             onChange={(e) => {
               setContent(e.target.value);
               setStatus("idle");
+            }}
+            onPaste={(e) => {
+              const file = imageFrom(e.clipboardData);
+              if (!file) return; // plain text: let the browser paste it
+              e.preventDefault();
+              void attach(file);
+            }}
+            onDragOver={(e) => {
+              if (imageFrom(e.dataTransfer)) e.preventDefault();
+            }}
+            onDrop={(e) => {
+              const file = imageFrom(e.dataTransfer);
+              if (!file) return;
+              e.preventDefault();
+              void attach(file);
             }}
             spellCheck={false}
             className="h-full w-full resize-none rounded-xl border border-line bg-surface p-4 font-mono text-[13px] leading-relaxed text-ink focus:border-[var(--accent)] focus:outline-none"

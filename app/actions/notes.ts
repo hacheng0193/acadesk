@@ -9,6 +9,7 @@ import {
   createNote,
   noteIdFor,
   safeFileName,
+  saveImage,
   syncNoteIndex,
   trashNote,
   vaultRoot,
@@ -63,6 +64,46 @@ export async function deleteNote(relPath: string): Promise<{ ok: true } | { ok: 
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof VaultError ? e.message : "刪除失敗" };
+  }
+}
+
+/** Images a pasted clipboard entry may carry, and the extension each gets. */
+const PASTE_TYPES: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/svg+xml": ".svg",
+  "image/avif": ".avif",
+  "image/bmp": ".bmp",
+};
+
+/** 10 MB: a screenshot is far below this, a pasted photo should still fit. */
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Store an image pasted into a note and hand back the embed to write into it.
+ * The file goes into the vault's attachment folder, so Obsidian shows the same
+ * picture when it opens the note.
+ */
+export async function attachImage(
+  fd: FormData,
+): Promise<{ ok: true; rel: string; embed: string } | { ok: false; error: string }> {
+  try {
+    if (!vaultRoot()) return { ok: false, error: "尚未設定 Obsidian vault 路徑" };
+    const file = fd.get("file");
+    if (!(file instanceof File) || !file.size) return { ok: false, error: "沒有收到圖片" };
+
+    const ext = PASTE_TYPES[file.type] ?? path.extname(file.name).toLowerCase();
+    if (!Object.values(PASTE_TYPES).includes(ext)) return { ok: false, error: "不支援的圖片格式" };
+    if (file.size > MAX_IMAGE_BYTES) return { ok: false, error: "圖片超過 10 MB" };
+
+    const rel = saveImage(Buffer.from(await file.arrayBuffer()), ext);
+    // A bare name, the way Obsidian writes its own pastes: the note keeps
+    // working if the attachment folder is reorganised later.
+    return { ok: true, rel, embed: `![[${path.basename(rel)}]]` };
+  } catch (e) {
+    return { ok: false, error: e instanceof VaultError ? e.message : "圖片儲存失敗" };
   }
 }
 

@@ -61,14 +61,57 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i;
+
+/**
+ * Point image sources at the vault. A note references a file on disk, which the
+ * browser cannot load from an http page, so anything that is not already a web
+ * URL is served through the API instead.
+ *
+ * A file we cannot find becomes the same dotted placeholder an unresolved
+ * wikilink gets. Left as a relative src it would be a broken-image icon, and
+ * the browser would resolve it against /notes/... - firing a full note render
+ * per missing picture, for a file name the reader never gets to see.
+ */
+function rewriteImages(html: string, resolve?: (src: string) => string | null): string {
+  return html.replace(/<img\b[^>]*>/gi, (tag) => {
+    const src = /\ssrc\s*=\s*(["'])([^"']*)\1/i.exec(tag)?.[2];
+    if (!src || /^(?:[a-z]+:|\/)/i.test(src)) return tag;
+    let name = src;
+    try {
+      name = decodeURIComponent(src);
+    } catch {
+      // A stray % is not an escape; take the src as typed.
+    }
+    const rel = resolve?.(name);
+    if (!rel) {
+      // marked already escaped the alt text; a raw file name has not been.
+      const alt = /\salt\s*=\s*(["'])([^"']*)\1/i.exec(tag)?.[2] || escapeHtml(name);
+      return `<span class="text-dim underline decoration-dotted" title="找不到這個檔案">🖼 ${alt}</span>`;
+    }
+    return tag.replace(
+      /\ssrc\s*=\s*(["'])[^"']*\1/i,
+      ` src="/api/vault/image?path=${encodeURIComponent(rel)}"`,
+    );
+  });
+}
+
 /**
  * Turn Obsidian `[[wikilinks]]` into in-app note links before Markdown parsing.
  * `resolve` maps a note name to a vault-relative path, if we know one.
  */
 function expandWikilinks(md: string, resolve?: (name: string) => string | null): string {
   return md.replace(/!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (whole, rawName, alias) => {
-    if (whole.startsWith("!")) return whole; // embeds: leave as-is
     const name = String(rawName).trim();
+    if (whole.startsWith("!")) {
+      // An image embed becomes ordinary Markdown, so the src rewrite below is
+      // the only place that has to know how a vault file is served. Obsidian's
+      // `|300` width hint is not alt text, so it is dropped rather than shown.
+      if (!IMAGE_EXT.test(name)) return whole; // embedded notes: leave as-is
+      const hint = String(alias ?? "").trim();
+      const label = hint && !/^\d+(x\d+)?$/.test(hint) ? hint : name;
+      return `![${label.replace(/[\[\]]/g, "")}](${encodeURI(name)})`;
+    }
     const label = escapeHtml(String(alias ?? name).trim());
     const rel = resolve?.(name);
     if (!rel) return `<span class="text-dim underline decoration-dotted">${label}</span>`;
@@ -86,9 +129,14 @@ export function splitFrontmatter(md: string): { frontmatter: string | null; body
 
 export function renderMarkdown(
   md: string,
-  opts: { resolveWikilink?: (name: string) => string | null; stripFrontmatter?: boolean } = {},
+  opts: {
+    resolveWikilink?: (name: string) => string | null;
+    /** Maps an image's src or embed name to a vault-relative path. */
+    resolveImage?: (src: string) => string | null;
+    stripFrontmatter?: boolean;
+  } = {},
 ): string {
   const source = opts.stripFrontmatter ? splitFrontmatter(md).body : md;
   const html = marked.parse(expandWikilinks(source, opts.resolveWikilink), { async: false });
-  return scrub(html);
+  return rewriteImages(scrub(html), opts.resolveImage);
 }

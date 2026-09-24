@@ -141,7 +141,7 @@ body {
 .prose-note table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
 .prose-note th, .prose-note td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
 .prose-note th { background: var(--surface-2); }
-.prose-note img { border-radius: 8px; }
+.prose-note img { border-radius: 8px; max-width: 100%; height: auto; }
 .prose-note input[type="checkbox"] { margin-right: 0.4em; }
 /* KaTeX: a wide equation scrolls in its own box rather than stretching the page,
    and its own <code>-ish spans must not pick up the code chip styling above. */
