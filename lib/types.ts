@@ -138,12 +138,14 @@ export type Milestone = {
   sort_order: number;
 };
 
-export type LogKind = "experiment" | "meeting" | "idea";
+export type LogKind = "experiment" | "meeting" | "idea" | "lecture" | "blank";
 
 export const LOG_KINDS: { key: LogKind; label: string; tone: "accent" | "warn" | "neutral" }[] = [
   { key: "experiment", label: "實驗", tone: "accent" },
   { key: "meeting", label: "Meeting", tone: "warn" },
   { key: "idea", label: "想法", tone: "neutral" },
+  { key: "lecture", label: "上課筆記", tone: "warn" },
+  { key: "blank", label: "空白", tone: "neutral" },
 ];
 
 export const LOG_KIND: Record<LogKind, (typeof LOG_KINDS)[number]> = Object.fromEntries(

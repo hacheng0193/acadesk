@@ -66,13 +66,26 @@ export async function deleteNote(relPath: string): Promise<{ ok: true } | { ok: 
   }
 }
 
+/** The headings each log kind starts with; empty means a bare heading only. */
+const LOG_BODIES: Record<LogKind, string> = {
+  experiment: "## 目的\n\n## 方法\n\n## 觀察\n\n## 結論與下一步\n",
+  meeting: "## 討論\n\n## 決議\n\n## 待辦\n- [ ] \n",
+  idea: "",
+  lecture: "## 課程 / 章節\n\n## 重點\n\n## 疑問\n\n## 待辦\n- [ ] \n",
+  blank: "",
+};
+
+/** A log note: frontmatter the vault queries read, then the kind's outline. */
+function logNote(kind: LogKind, title: string, date: string, body = ""): string {
+  const content = body || LOG_BODIES[kind];
+  return `---\ntype: ${kind}\ndate: ${date}\n---\n\n# ${title}\n\n${content ? `${content}\n` : ""}`;
+}
+
 const TEMPLATES: Record<string, (title: string, date: string) => string> = {
   blank: (t) => `# ${t}\n\n`,
-  experiment: (t, d) =>
-    `---\ntype: experiment\ndate: ${d}\n---\n\n# ${t}\n\n## 目的\n\n## 方法\n\n## 觀察\n\n## 結論與下一步\n\n`,
-  meeting: (t, d) =>
-    `---\ntype: meeting\ndate: ${d}\n---\n\n# ${t}\n\n## 討論\n\n## 決議\n\n## 待辦\n- [ ] \n\n`,
-  idea: (t, d) => `---\ntype: idea\ndate: ${d}\n---\n\n# ${t}\n\n`,
+  experiment: (t, d) => logNote("experiment", t, d),
+  meeting: (t, d) => logNote("meeting", t, d),
+  idea: (t, d) => logNote("idea", t, d),
   paper: (t, d) =>
     `---\ntype: paper-note\ndate: ${d}\n---\n\n# ${t}\n\n## 問題\n\n## 方法\n\n## 結果\n\n## 對我的啟發\n\n`,
 };
@@ -170,9 +183,7 @@ export async function newLog(fd: FormData): Promise<{ ok: true; rel: string } | 
     const folder = str(fd, "folder").replace(/^\/+|\/+$/g, "") || defaultLogFolder(project);
     const body = str(fd, "body");
 
-    const content = body
-      ? `---\ntype: ${kind}\ndate: ${date}\n---\n\n# ${title}\n\n${body}\n`
-      : TEMPLATES[kind](title, date);
+    const content = logNote(kind, title, date, body);
     const created = createNote(path.posix.join(folder, safeFileName(`${date} ${title}`)), content);
 
     // Make sure the topic can see it: nothing to do if it already follows the
