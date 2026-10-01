@@ -37,7 +37,14 @@ export function SessionForm({
           <Field label="項目">
             <select name="target" defaultValue={targetKey(session)} className={inputClass}>
               <option value="">未分類</option>
-              {projects.map((p) => (
+              {projects
+                .filter(
+                  (p) =>
+                    p.id === session?.project_id ||
+                    p.kind !== "course" ||
+                    !courses.some((c) => c.name === p.title),
+                )
+                .map((p) => (
                 <option key={p.id} value={`p:${p.id}`}>
                   {p.title}
                 </option>

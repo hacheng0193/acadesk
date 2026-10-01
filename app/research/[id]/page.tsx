@@ -10,12 +10,12 @@ import { ProjectForm } from "@/components/ProjectForm";
 import { ProjectLinkForm } from "@/components/ProjectLinkForm";
 import { StartTimerButton } from "@/components/StartTimerButton";
 import { Badge, Card, Empty, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
-import { formatHours } from "@/lib/dates";
+import { addDays, formatHours, startOfWeek, today } from "@/lib/dates";
 import { foldersFor, notesFor } from "@/lib/queries/notes";
 import { papersForProject } from "@/lib/queries/papers";
 import { defaultLogFolder, logsFor } from "@/lib/queries/logs";
 import { getProject, listMilestones, listProjects } from "@/lib/queries/research";
-import { projectHours } from "@/lib/queries/time";
+import { projectHours, projectHoursBetween } from "@/lib/queries/time";
 import { LOG_KIND, colorOf, linkHost, parseLinks } from "@/lib/types";
 import { listFolders } from "@/lib/vault";
 
@@ -48,6 +48,8 @@ export default async function ProjectPage({
   const noteFolders = foldersFor("project", project.id);
   const vaultFolders = listFolders();
   const hours = projectHours(project.id);
+  const weekStart = startOfWeek(today());
+  const weekHours = projectHoursBetween(project.id, weekStart, addDays(weekStart, 6));
   const links = parseLinks(project.links_json);
   const allProjects = listProjects();
 
@@ -62,6 +64,7 @@ export default async function ProjectPage({
           [
             project.advisor && `指導：${project.advisor}`,
             project.started_on && `始於 ${project.started_on}`,
+            `本週投入 ${formatHours(weekHours)}`,
             `累計投入 ${formatHours(hours)}`,
           ]
             .filter(Boolean)

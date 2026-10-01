@@ -1,6 +1,7 @@
 import { AttendanceHeatmap } from "@/components/charts/AttendanceHeatmap";
 import { HoursBars } from "@/components/charts/HoursBars";
 import { ProjectHoursBars } from "@/components/charts/ProjectHoursBars";
+import { ThisWeekCard, WeeklyTopicTable } from "@/components/TopicWeeklyStats";
 import { Card, Empty, PageHeader, SectionTitle } from "@/components/ui";
 import { addDays, formatHours, startOfWeek, today } from "@/lib/dates";
 import {
@@ -8,6 +9,7 @@ import {
   checkinsBetween,
   dailyHours,
   hoursByProject,
+  hoursByWeek,
   totalHours,
 } from "@/lib/queries/time";
 
@@ -52,6 +54,18 @@ export default function StatsPage() {
   });
 
   const byProject = hoursByProject(heatFrom, day);
+  const thisWeekCard = (scope: "research" | "course", noun: string) => (
+    <ThisWeekCard noun={noun} weekStart={weekStart} thisWeek={hoursByProject(weekStart, day, scope)} />
+  );
+  const weeklyTable = (scope: "research" | "course", noun: string) => (
+    <WeeklyTopicTable
+      noun={noun}
+      weekStart={weekStart}
+      columns={hoursByProject(heatFrom, day, scope)}
+      rows={hoursByWeek(heatFrom, WEEKS, scope).reverse()}
+      weeks={WEEKS}
+    />
+  );
   const checkins = checkinsBetween(heatFrom, day);
   const withOut = checkins.filter((c) => c.check_out_at);
   const avgStay =
@@ -80,6 +94,9 @@ export default function StatsPage() {
 
       {hasData ? (
         <div className="space-y-6">
+          {thisWeekCard("research", "研究主題")}
+          {thisWeekCard("course", "課程")}
+
           <Card className="p-4">
             <SectionTitle title="每週投入時數" hint={`${heatFrom} 起的 ${WEEKS} 週`} />
             <HoursBars bars={weeklyBars} />
@@ -102,6 +119,9 @@ export default function StatsPage() {
               )}
             </Card>
           </div>
+
+          {weeklyTable("research", "研究主題")}
+          {weeklyTable("course", "課程")}
 
           <Card className="p-4">
             <SectionTitle title="每日熱區" hint="顏色越深代表當天投入越多" />

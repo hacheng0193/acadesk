@@ -4,7 +4,7 @@ import { maxSessionHours } from "../idle";
 import type { Checkin, SessionRow } from "../types";
 
 const SELECT = `
-  SELECT s.*, p.title AS project_title, p.color AS project_color,
+  SELECT s.*, p.title AS project_title, p.color AS project_color, p.kind AS project_kind,
          c.name AS course_name, c.color AS course_color
   FROM time_sessions s
   LEFT JOIN projects p ON p.id = s.project_id
@@ -86,14 +86,22 @@ export function dailyHours(from: string, to: string): Map<string, number> {
 export function hoursByProject(
   from: string,
   to: string,
+  scope: "all" | "research" | "course" = "all",
 ): { id: number | null; label: string; color: string; hours: number }[] {
   const now = new Date();
   const buckets = new Map<string, { id: number | null; label: string; color: string; hours: number }>();
   for (const s of sessionsBetween(from, to)) {
-    const key = s.project_id ? `p${s.project_id}` : s.course_id ? `c${s.course_id}` : "none";
+    // A course exists both as a courses row and as a course-kind project (which
+    // holds its notes), so time logged against either is the same course:
+    // bucket both by name instead of showing it twice.
+    const isCourse = s.project_id ? s.project_kind === "course" : s.course_id !== null;
+    if (scope === "research" && (!s.project_id || isCourse)) continue;
+    if (scope === "course" && !isCourse) continue;
+    const label = s.project_title ?? s.course_name ?? "未分類";
+    const key = isCourse ? `course:${label}` : s.project_id ? `p${s.project_id}` : "none";
     const entry = buckets.get(key) ?? {
       id: s.project_id ?? s.course_id ?? null,
-      label: s.project_title ?? s.course_name ?? "未分類",
+      label,
       color: s.project_color ?? s.course_color ?? "none",
       hours: 0,
     };
@@ -106,6 +114,24 @@ export function hoursByProject(
     buckets.set(key, entry);
   }
   return [...buckets.values()].filter((b) => b.hours > 0).sort((a, b) => b.hours - a.hours);
+}
+
+/** Hours per week (Monday-start) keyed by topic label, one entry per week from `firstWeek`. */
+export function hoursByWeek(
+  firstWeek: string,
+  weeks: number,
+  scope: "research" | "course",
+): { week: string; byLabel: Map<string, number>; total: number }[] {
+  return Array.from({ length: weeks }, (_, i) => {
+    const week = addDays(firstWeek, i * 7);
+    const byLabel = new Map<string, number>();
+    let total = 0;
+    for (const b of hoursByProject(week, addDays(week, 6), scope)) {
+      byLabel.set(b.label, b.hours);
+      total += b.hours;
+    }
+    return { week, byLabel, total };
+  });
 }
 
 export function totalHours(from: string, to: string): number {
@@ -162,4 +188,19 @@ export function projectHours(projectId: number): number {
     .all(projectId) as { started_at: string; ended_at: string | null }[];
   const now = new Date();
   return rows.reduce((sum, r) => sum + sessionSeconds(r, now) / 3600, 0);
+}
+
+/** Hours logged against one project inside [from, to] (days), clipped to the window. */
+export function projectHoursBetween(projectId: number, from: string, to: string): number {
+  const now = new Date();
+  const lo = new Date(`${from}T00:00:00`).getTime();
+  const hi = new Date(`${to}T23:59:59`).getTime();
+  let sum = 0;
+  for (const s of sessionsBetween(from, to)) {
+    if (s.project_id !== projectId) continue;
+    const start = Math.max(new Date(s.started_at).getTime(), lo);
+    const end = Math.min(effectiveEnd(s, now).getTime(), hi);
+    sum += Math.max(0, (end - start) / 3_600_000);
+  }
+  return sum;
 }

@@ -194,6 +194,7 @@ export type TimeSession = {
 export type SessionRow = TimeSession & {
   project_title: string | null;
   project_color: string | null;
+  project_kind: ProjectKind | null;
   course_name: string | null;
   course_color: string | null;
 };
