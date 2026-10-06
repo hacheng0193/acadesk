@@ -12,6 +12,8 @@ function hrefFor(kind: SearchKind, refKey: string): string {
       return `/research/${refKey}`;
     case "paper":
       return "/papers";
+    case "review":
+      return `/reviews/${refKey}`;
     case "note":
       return `/notes/${refKey.split("/").map(encodeURIComponent).join("/")}`;
   }
@@ -99,6 +101,10 @@ export function rebuildIndex(): void {
     db.prepare(
       `INSERT INTO search_index (kind, ref_id, ref_key, title, body)
        SELECT 'project', id, id, title, description_md FROM projects`,
+    ).run();
+    db.prepare(
+      `INSERT INTO search_index (kind, ref_id, ref_key, title, body)
+       SELECT 'review', id, id, title, question_md || ' ' || synthesis_md FROM reviews`,
     ).run();
   })();
 }

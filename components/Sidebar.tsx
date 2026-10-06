@@ -58,6 +58,7 @@ export function Sidebar() {
           { href: "/research", label: "研究", icon: "✦" },
           { href: "/notes", label: "筆記", icon: "✎" },
           { href: "/papers", label: "文獻", icon: "❑" },
+          { href: "/reviews", label: "文獻回顧", icon: "▥" },
           { href: "/time", label: "時間", icon: "◷" },
           { href: "/stats", label: "統計", icon: "▦" },
         ]}

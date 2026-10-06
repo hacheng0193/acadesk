@@ -12,6 +12,7 @@ const execFile = promisify(execFileCb);
 function refresh() {
   revalidatePath("/papers");
   revalidatePath("/research", "layout");
+  revalidatePath("/reviews", "layout");
 }
 
 function syncTags(paperId: number, raw: string) {

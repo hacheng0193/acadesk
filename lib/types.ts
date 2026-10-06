@@ -178,6 +178,58 @@ export type Paper = {
   added_at: string;
 };
 
+/** One column of a review's comparison matrix. */
+export type ReviewColumn = { id: string; label: string };
+
+export type Review = {
+  id: number;
+  title: string;
+  question_md: string;
+  synthesis_md: string;
+  /** JSON array of ReviewColumn; read it with parseColumns(). */
+  columns_json: string;
+  project_id: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReviewListRow = Review & {
+  paper_count: number;
+  project_title: string | null;
+  project_color: string | null;
+};
+
+/** A paper as it sits in a review: the library row plus its matrix cells. */
+export type ReviewPaperRow = Paper & {
+  sort_order: number;
+  /** JSON object {columnId: text}; read it with parseCells(). */
+  cells_json: string;
+};
+
+export function parseColumns(json: string | null | undefined): ReviewColumn[] {
+  try {
+    const v = JSON.parse(json || "[]");
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter((c): c is ReviewColumn => !!c && typeof c.id === "string" && typeof c.label === "string")
+      .map((c) => ({ id: c.id, label: c.label }));
+  } catch {
+    return [];
+  }
+}
+
+export function parseCells(json: string | null | undefined): Record<string, string> {
+  try {
+    const v = JSON.parse(json || "{}");
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    return Object.fromEntries(
+      Object.entries(v).filter((e): e is [string, string] => typeof e[1] === "string"),
+    );
+  } catch {
+    return {};
+  }
+}
+
 export type TimeSession = {
   id: number;
   project_id: number | null;
@@ -281,7 +333,7 @@ export const KIND_COLOR: Record<ItemKind, string> = {
   other: "none",
 };
 
-export type SearchKind = "item" | "paper" | "project" | "note";
+export type SearchKind = "item" | "paper" | "project" | "note" | "review";
 
 export type SearchHit = {
   kind: SearchKind;
@@ -297,4 +349,5 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   paper: "文獻",
   project: "研究主題",
   note: "筆記",
+  review: "文獻回顧",
 };

@@ -236,3 +236,41 @@ CREATE TABLE IF NOT EXISTS note_folder_links (
   entity_id   INTEGER NOT NULL,
   PRIMARY KEY (folder, entity_type, entity_id)
 );
+
+-- A literature review: papers from the library side by side in a comparison
+-- matrix, plus the synthesis written from it.
+CREATE TABLE IF NOT EXISTS reviews (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  title        TEXT NOT NULL,
+  question_md  TEXT NOT NULL DEFAULT '',
+  synthesis_md TEXT NOT NULL DEFAULT '',
+  -- The matrix columns, as a JSON array of {id, label}. Cells are keyed by the
+  -- id, so renaming a column keeps what was written under it.
+  columns_json TEXT NOT NULL DEFAULT '[{"id":"method","label":"方法"},{"id":"data","label":"資料集"},{"id":"findings","label":"主要發現"},{"id":"limits","label":"限制"}]',
+  project_id   INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS review_papers (
+  review_id  INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+  paper_id   INTEGER NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+  sort_order REAL NOT NULL DEFAULT 0,
+  -- {columnId: text}
+  cells_json TEXT NOT NULL DEFAULT '{}',
+  PRIMARY KEY (review_id, paper_id)
+);
+CREATE INDEX IF NOT EXISTS idx_review_papers_paper ON review_papers(paper_id);
+
+CREATE TRIGGER IF NOT EXISTS search_reviews_ai AFTER INSERT ON reviews BEGIN
+  INSERT INTO search_index (kind, ref_id, ref_key, title, body)
+  VALUES ('review', new.id, new.id, new.title, new.question_md || ' ' || new.synthesis_md);
+END;
+CREATE TRIGGER IF NOT EXISTS search_reviews_au AFTER UPDATE ON reviews BEGIN
+  DELETE FROM search_index WHERE kind = 'review' AND ref_id = old.id;
+  INSERT INTO search_index (kind, ref_id, ref_key, title, body)
+  VALUES ('review', new.id, new.id, new.title, new.question_md || ' ' || new.synthesis_md);
+END;
+CREATE TRIGGER IF NOT EXISTS search_reviews_ad AFTER DELETE ON reviews BEGIN
+  DELETE FROM search_index WHERE kind = 'review' AND ref_id = old.id;
+END;

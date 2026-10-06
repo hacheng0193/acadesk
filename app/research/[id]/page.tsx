@@ -15,6 +15,7 @@ import { foldersFor, notesFor } from "@/lib/queries/notes";
 import { papersForProject } from "@/lib/queries/papers";
 import { defaultLogFolder, logsFor } from "@/lib/queries/logs";
 import { getProject, listMilestones, listProjects } from "@/lib/queries/research";
+import { reviewsForProject } from "@/lib/queries/reviews";
 import { projectHours, projectHoursBetween } from "@/lib/queries/time";
 import { LOG_KIND, colorOf, linkHost, parseLinks } from "@/lib/types";
 import { listFolders } from "@/lib/vault";
@@ -44,6 +45,7 @@ export default async function ProjectPage({
   const milestones = listMilestones(project.id);
   const logs = logsFor(project.id);
   const papers = papersForProject(project.id);
+  const reviews = reviewsForProject(project.id);
   const notes = notesFor("project", project.id);
   const noteFolders = foldersFor("project", project.id);
   const vaultFolders = listFolders();
@@ -206,6 +208,22 @@ export default async function ProjectPage({
               backTo={{ href: `/research/${project.id}`, label: project.title }}
             />
           </Card>
+
+          {reviews.length ? (
+            <Card className="p-4">
+              <SectionTitle title="文獻回顧" hint={`${reviews.length} 份`} />
+              <ul className="space-y-1.5 text-sm">
+                {reviews.map((r) => (
+                  <li key={r.id} className="flex items-baseline gap-2">
+                    <Link href={`/reviews/${r.id}`} className="flex-1 truncate hover:underline">
+                      {r.title}
+                    </Link>
+                    <span className="shrink-0 text-[11px] text-dim">{r.paper_count} 篇</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
 
           <Card className="p-4">
             <SectionTitle title="相關論文" hint={`${papers.length} 篇`} />
