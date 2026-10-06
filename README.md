@@ -4,8 +4,8 @@ A local-first coursework & research manager for university and graduate students
 Courses, assignments, research milestones, time tracking, papers and notes — one
 app, running on your own machine.
 
-No accounts, no cloud, no telemetry. It binds to `localhost` and the database is
-a single SQLite file you own.
+No accounts, no cloud, no telemetry. It listens on `127.0.0.1` only and the
+database is a single SQLite file you own.
 
 繁體中文說明：**[README.zh-TW.md](README.zh-TW.md)**（更完整，包含設計理由與維運細節）
 
@@ -17,10 +17,12 @@ a single SQLite file you own.
 |---|---|
 | **Overview** | Today's classes, next 7 days, active milestones, today's hours, lab check-in |
 | **Schedule** | Assignments, exams, talks, weekly reports, meetings — board and calendar views, weekly/biweekly repeats |
-| **Courses** | Course records and a weekly timetable; can spin up a matching research topic and link straight to it |
+| **Courses** | Course records and a weekly timetable; can spin up a matching research topic and link straight to it. Optional one-click sync with NTU COOL |
+| **Lectures** | Lecture files from NTU COOL per course and module — preview, download into your vault, or skip |
 | **Research** | Topics → milestone timeline, research log, linked papers and notes, cumulative hours; categorised as research / course / side project and filterable |
 | **Notes** | Reads and writes your Obsidian vault directly — not a second copy; sidebar is a collapsible folder tree |
 | **Papers** | Paper list, tags, linked research topics, local PDFs |
+| **Reviews** | Literature reviews: papers side by side in a comparison matrix, plus the synthesis you write from it, exportable |
 | **Time** | Timer sessions and lab check-in/out |
 | **Stats** | Weekly/monthly hours, split by topic, daily heatmap, attendance streak |
 | **Settings** | Vault path, hour targets, timer, backup |
@@ -56,6 +58,16 @@ A today's-todo list and a research timer live in the sidebar on every page.
   ones written in Obsidian. Older databases: run
   `node --experimental-strip-types scripts/migrate-logs-to-vault.mts` (dry run),
   then add `--apply`.
+- **NTU COOL sync is one button.** Read-only, using your browser's session
+  cookie (see *Optional setup*). It pulls assignments into the schedule (tagged
+  「COOL 作業」, marked done once submitted, due dates kept current; a manual
+  item with the same title is adopted rather than duplicated), new
+  announcements, and the files in each course's modules. You pick which files
+  to download into `<vault>/<course>/Lectures/`; the rest can be previewed
+  straight from COOL or skipped.
+- **PDFs open in a built-in viewer** (PDF.js), so they display even in browsers
+  without a PDF plugin. Downloaded files can also be opened in Preview or shown
+  in Finder.
 - **Courses can own a research topic.** Adding a course creates a same-named
   topic by default (categorised as a course topic), reachable from the course
   card or straight from the timetable block. It's a real foreign key, so
@@ -72,7 +84,7 @@ A today's-todo list and a research timer live in the sidebar on every page.
 ## Install
 
 ```bash
-git clone https://github.com/<you>/acadesk.git
+git clone https://github.com/hacheng0193/acadesk.git
 cd acadesk
 npm install
 npm run build
@@ -81,7 +93,7 @@ npm run build
 Then either run it by hand:
 
 ```bash
-npm start          # http://localhost:3000
+npm start          # http://localhost:3000 (this machine only)
 ```
 
 …or, on macOS, have it start at login and back itself up daily:
@@ -118,6 +130,23 @@ never part of the export. Note that **git history cannot be
 un-pushed** — turning a toggle off later only keeps the item out of *future*
 commits. Paper PDFs are never uploaded.
 
+**NTU COOL** — log in to `cool.ntu.edu.tw` in your browser, open DevTools →
+Network, click any request to `cool.ntu.edu.tw`, and copy the whole `Cookie`
+request header into `.env.local`:
+
+```bash
+COOL_COOKIE=_normandy_session=...; log_session_id=...
+```
+
+Restart the server, then press 「同步 NTU COOL」 on the Courses page. Courses
+are matched to COOL by course code, then by name; fix any match in the course's
+edit form (or set it to 不同步). Downloading lecture files needs the Obsidian
+vault configured. The session expires when you log out of COOL or after a while
+— the sync then says so, and you paste a fresh cookie. Only `GET` requests are
+ever sent, and the cookie never leaves this machine except to COOL itself.
+COOL runs on Canvas LMS, so `COOL_BASE_URL` can point at another school's
+Canvas instance; only NTU COOL has been tried.
+
 ## Where your data lives
 
 | | |
@@ -126,17 +155,22 @@ commits. Paper PDFs are never uploaded.
 | `data/papers/` | PDFs you attached. Gitignored. |
 | `backups/snapshots/` | Restore-grade `.db` copies, newest per day, 14 days. Gitignored. |
 | `backups/export/` | JSON export for the optional GitHub push. Gitignored. |
-| your Obsidian vault | Notes. Untouched by this repo's backups — use your own. |
+| your Obsidian vault | Notes, and lecture files downloaded from COOL (`<course>/Lectures/`). Untouched by this repo's backups — use your own. |
+| `.env.local` | Optional settings, including your COOL cookie. Gitignored. |
 
 A fresh clone contains **none** of the above.
 
 ## Limits, honestly
 
-- **Single user, no authentication.** It assumes it's your machine. Don't expose
-  it to a network.
-- **The only outbound request in the entire app** is the paper metadata lookup
-  (Crossref / arXiv), and it sends nothing but the identifier you typed. BibTeX
-  is parsed locally.
+- **Single user, no authentication.** It assumes it's your machine, so the
+  server listens on `127.0.0.1` only: phones and other computers can't reach it.
+  Don't put it behind a proxy or tunnel — with a COOL cookie configured, anyone
+  who can reach it can read your COOL courses.
+- **Outbound requests** go to two places only: the paper metadata lookup
+  (Crossref / arXiv), which sends nothing but the identifier you typed, and
+  NTU COOL, only if you set `COOL_COOKIE`. BibTeX is parsed locally.
+- **Some buttons are macOS-only**: 「Finder」, 「預覽程式」 and opening local
+  `file://` links use the `open` command. The rest works anywhere.
 - **The timetable importer targets NTU's course site** (`course.ntu.edu.tw`)
   paste format. Other schools won't match — enter courses manually; nothing else
   depends on it.
