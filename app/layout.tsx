@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LocalFileLinks } from "@/components/LocalFileLinks";
 import { Sidebar } from "@/components/Sidebar";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="flex min-h-dvh">
         <Sidebar />
+        <LocalFileLinks />
         <main className="h-dvh flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-8 py-8">{children}</div>
         </main>

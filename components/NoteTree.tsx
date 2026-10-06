@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { countTags, hasAllTags } from "@/lib/tags";
+import { TagFilter } from "./TagFilter";
 import { cx, inputClass } from "./ui";
 
-export type NoteItem = { rel: string; title: string; mtime: number; size: number };
+export type NoteItem = { rel: string; title: string; mtime: number; size: number; tags: string[] };
 
 function folderOf(rel: string): string {
   const i = rel.lastIndexOf("/");
@@ -71,13 +73,15 @@ function buildTree(notes: NoteItem[]): FolderNode {
   return root;
 }
 
-export function NoteTree({ notes }: { notes: NoteItem[] }) {
+export function NoteTree({ notes, initialTags = [] }: { notes: NoteItem[]; initialTags?: string[] }) {
   const [query, setQuery] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [folder, setFolder] = useState<string | null>(null);
   // Collapsed to start: only the vault's top level is visible until you open something.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const root = useMemo(() => buildTree(notes), [notes]);
+  const tagCounts = useMemo(() => countTags(notes.map((n) => n.tags)), [notes]);
 
   const toggle = (path: string) =>
     setExpanded((prev) => {
@@ -103,7 +107,10 @@ export function NoteTree({ notes }: { notes: NoteItem[] }) {
 
   const needle = query.trim().toLowerCase();
   const filtered = notes.filter(
-    (n) => inSelection(n.rel) && (!needle || n.rel.toLowerCase().includes(needle)),
+    (n) =>
+      inSelection(n.rel) &&
+      hasAllTags(n.tags, selectedTags) &&
+      (!needle || n.rel.toLowerCase().includes(needle)),
   );
 
   return (
@@ -146,6 +153,19 @@ export function NoteTree({ notes }: { notes: NoteItem[] }) {
         </div>
       </div>
 
+      <div>
+      {tagCounts.length ? (
+        <div className="mb-3">
+          <TagFilter
+            tags={tagCounts}
+            selected={selectedTags}
+            onToggle={(t) =>
+              setSelectedTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+            }
+            onClear={() => setSelectedTags([])}
+          />
+        </div>
+      ) : null}
       <div className="divide-y divide-[var(--border)] rounded-xl border border-line bg-surface">
         {filtered.map((n) => (
           <Link
@@ -166,6 +186,7 @@ export function NoteTree({ notes }: { notes: NoteItem[] }) {
         {filtered.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-dim">沒有符合的筆記</p>
         ) : null}
+      </div>
       </div>
     </div>
   );

@@ -258,6 +258,7 @@ export type LinkedNote = {
   title: string;
   /** null when linked individually; otherwise the followed folder it came from. */
   via: string | null;
+  tags: string[];
 };
 
 export type Todo = {

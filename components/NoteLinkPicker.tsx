@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { linkFolder, linkNote, unlinkFolder, unlinkNote } from "@/app/actions/notes";
 import type { LinkedNote } from "@/lib/types";
+import { countTags, hasAllTags } from "@/lib/tags";
+import { TagFilter } from "./TagFilter";
 import { Button, cx, inputClass } from "./ui";
 
 function noteHref(rel: string, backTo?: { href: string; label: string }): string {
@@ -41,6 +44,21 @@ export function NoteLinkPicker({
   const [options, setOptions] = useState<{ rel: string; title: string }[]>([]);
   const [folderChoice, setFolderChoice] = useState("");
   const [pending, startTransition] = useTransition();
+
+  // The filter lives in the URL (?tag=a&tag=b) so it survives a reload and can be shared.
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const selectedTags = params.getAll("tag");
+  const setTags = (next: string[]) => {
+    const q = new URLSearchParams(params.toString());
+    q.delete("tag");
+    next.forEach((t) => q.append("tag", t));
+    const qs = q.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+  const tagCounts = useMemo(() => countTags(linked.map((n) => n.tags)), [linked]);
+  const shown = selectedTags.length ? linked.filter((n) => hasAllTags(n.tags, selectedTags)) : linked;
 
   useEffect(() => {
     if (!query.trim()) {
@@ -84,9 +102,24 @@ export function NoteLinkPicker({
         </div>
       ) : null}
 
-      {linked.length ? (
+      <div className="mb-2">
+        <TagFilter
+          tags={tagCounts}
+          selected={selectedTags}
+          onToggle={(t) =>
+            setTags(selectedTags.includes(t) ? selectedTags.filter((x) => x !== t) : [...selectedTags, t])
+          }
+          onClear={() => setTags([])}
+        />
+      </div>
+
+      {linked.length && !shown.length ? (
+        <p className="mb-2 text-xs text-dim">沒有同時符合這些 tag 的筆記</p>
+      ) : null}
+
+      {shown.length ? (
         <ul className="mb-2 space-y-1.5 text-sm">
-          {linked.map((n) => (
+          {shown.map((n) => (
             <li key={n.rel_path} className="group flex items-center gap-2">
               <span className="shrink-0 text-dim" title={n.via ? `來自資料夾 ${n.via}` : undefined}>
                 {n.via ? "📁" : "✎"}
@@ -94,6 +127,11 @@ export function NoteLinkPicker({
               <Link href={noteHref(n.rel_path, backTo)} className="flex-1 truncate hover:underline">
                 {n.title}
               </Link>
+              {n.tags.slice(0, 3).map((t) => (
+                <span key={t} className="hidden shrink-0 text-[10px] text-dim sm:inline">
+                  #{t}
+                </span>
+              ))}
               {n.via ? null : (
                 <button
                   type="button"
@@ -109,7 +147,7 @@ export function NoteLinkPicker({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : linked.length ? null : (
         <p className="mb-2 text-xs text-dim">尚未連結任何筆記</p>
       )}
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NoteEditor } from "@/components/NoteEditor";
 import { renderMarkdown } from "@/lib/markdown";
+import { extractTags } from "@/lib/tags";
 import { imageIndex, listNotes, obsidianUri, readNote, resolveVaultImage, VaultError } from "@/lib/vault";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +79,19 @@ export default async function NotePage({
       <h1 className="mb-4 text-xl font-semibold tracking-tight">
         {note.rel.split("/").pop()?.replace(/\.md$/i, "")}
       </h1>
+      {extractTags(note.content).length ? (
+        <div className="-mt-2 mb-4 flex flex-wrap gap-1">
+          {extractTags(note.content).map((t) => (
+            <Link
+              key={t}
+              href={`/notes?tag=${encodeURIComponent(t)}`}
+              className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-[var(--accent)] hover:underline"
+            >
+              #{t}
+            </Link>
+          ))}
+        </div>
+      ) : null}
       <NoteEditor
         relPath={note.rel}
         initialContent={note.content}

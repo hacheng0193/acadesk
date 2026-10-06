@@ -1,5 +1,6 @@
 import katex from "katex";
 import { marked, type TokenizerAndRendererExtension } from "marked";
+import { isTag, TAG_BODY } from "./tags";
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -43,7 +44,27 @@ const inlineMath: TokenizerAndRendererExtension = {
   renderer: (token) => renderMath(token.text, false),
 };
 
-marked.use({ extensions: [blockMath, inlineMath] });
+/**
+ * `#tag` becomes a pill that opens the notes list filtered to it. `start` only
+ * offers positions that follow whitespace, so `a#b` and URL fragments stay text.
+ */
+const inlineTag: TokenizerAndRendererExtension = {
+  name: "noteTag",
+  level: "inline",
+  start: (src) => {
+    const m = new RegExp(`(?:^|[\\s(])#(?=[\\p{L}\\p{N}_])`, "u").exec(src);
+    return m ? m.index + m[0].length - 1 : undefined;
+  },
+  tokenizer(src) {
+    const match = new RegExp(`^#(${TAG_BODY})`, "u").exec(src);
+    if (!match || !isTag(match[1])) return undefined;
+    return { type: "noteTag", raw: match[0], text: match[1].replace(/\/+$/, "") };
+  },
+  renderer: (token) =>
+    `<a class="note-tag" href="/notes?tag=${encodeURIComponent(token.text)}">#${escapeHtml(token.text)}</a>`,
+};
+
+marked.use({ extensions: [blockMath, inlineMath, inlineTag] });
 
 /**
  * Minimal scrub of raw HTML. These notes are the user's own files, so this is a
@@ -59,6 +80,23 @@ function scrub(html: string): string {
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+}
+
+/**
+ * Links to files on the user's own disk. The browser opens them directly (or
+ * Obsidian does) - the server never reads them - so all that is needed here is
+ * to make them recognisable and keep them from navigating the app away.
+ */
+function markLocalFiles(html: string): string {
+  return html.replace(/<a\s([^>]*?)href="(file:\/\/[^"]*)"([^>]*)>/gi, (_m, pre, href, post) => {
+    let shown = href;
+    try {
+      shown = decodeURIComponent(href.replace(/^file:\/\//i, ""));
+    } catch {
+      // Not valid percent-encoding; show the link as typed.
+    }
+    return `<a ${pre}class="local-file" href="${href}" title="${escapeHtml(shown)}"${post}>`;
+  });
 }
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i;
@@ -138,5 +176,5 @@ export function renderMarkdown(
 ): string {
   const source = opts.stripFrontmatter ? splitFrontmatter(md).body : md;
   const html = marked.parse(expandWikilinks(source, opts.resolveWikilink), { async: false });
-  return rewriteImages(scrub(html), opts.resolveImage);
+  return markLocalFiles(rewriteImages(scrub(html), opts.resolveImage));
 }

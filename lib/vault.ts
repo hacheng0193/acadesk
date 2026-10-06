@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { db, getSetting } from "./db";
 import { reindexNotes } from "./search";
+import { extractTags } from "./tags";
 
 const IGNORED = new Set([".obsidian", ".trash", ".git", "node_modules", ".DS_Store"]);
 
@@ -303,4 +304,19 @@ export function listFolders(): { path: string; count: number }[] {
   return [...counts.entries()]
     .map(([path, count]) => ({ path, count }))
     .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** Tags of every note, by vault-relative path. Reads each file, which is fine at personal-vault size. */
+export function noteTags(): Map<string, string[]> {
+  const root = vaultRoot();
+  const out = new Map<string, string[]>();
+  if (!root) return out;
+  for (const f of listNotes()) {
+    try {
+      out.set(f.rel, extractTags(fs.readFileSync(path.join(root, f.rel), "utf8")));
+    } catch {
+      out.set(f.rel, []);
+    }
+  }
+  return out;
 }

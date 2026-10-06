@@ -1,6 +1,6 @@
 import { db } from "../db";
 import type { LinkedNote } from "../types";
-import { listNotes } from "../vault";
+import { listNotes, noteTags } from "../vault";
 
 export type { LinkedNote };
 
@@ -35,7 +35,7 @@ export function notesFor(entityType: string, entityId: number): LinkedNote[] {
     .all(entityType, entityId) as { rel_path: string; title: string }[];
 
   const byPath = new Map<string, LinkedNote>();
-  for (const n of explicit) byPath.set(n.rel_path, { ...n, via: null });
+  for (const n of explicit) byPath.set(n.rel_path, { ...n, via: null, tags: [] });
 
   const folders = foldersFor(entityType, entityId);
   if (folders.length) {
@@ -44,9 +44,12 @@ export function notesFor(entityType: string, entityId: number): LinkedNote[] {
       if (byPath.has(file.rel)) continue;
       const dir = folderOf(file.rel);
       const via = folders.find((f) => dir === f || dir.startsWith(`${f}/`));
-      if (via) byPath.set(file.rel, { rel_path: file.rel, title: file.title, via });
+      if (via) byPath.set(file.rel, { rel_path: file.rel, title: file.title, via, tags: [] });
     }
   }
+
+  const tags = noteTags();
+  for (const n of byPath.values()) n.tags = tags.get(n.rel_path) ?? [];
 
   return [...byPath.values()].sort((a, b) => a.title.localeCompare(b.title));
 }

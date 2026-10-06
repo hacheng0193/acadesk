@@ -150,3 +150,15 @@ body {
 
 /* Scrollbars that don't shout. */
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+.prose-note a.note-tag {
+  display: inline-block;
+  padding: 0 0.45em;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 0.85em;
+  text-decoration: none;
+}
+.prose-note a.note-tag:hover { text-decoration: underline; }
+.prose-note a.local-file::before { content: "📎 "; }

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { attachImage, deleteNote, saveNote } from "@/app/actions/notes";
-import { Button, cx } from "./ui";
+import { Button, cx, inputClass } from "./ui";
 
 type Mode = "edit" | "split" | "preview";
 
@@ -35,6 +35,13 @@ export function NoteEditor({
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  // `[[` autocomplete: what has been typed after the brackets, and the matches.
+  const [pick, setPick] = useState<{ query: string; start: number } | null>(null);
+  const [matches, setMatches] = useState<{ rel: string; title: string }[]>([]);
+  const [active, setActive] = useState(0);
+  // Inline path box for local-file links (window.prompt is unavailable in some embedded browsers).
+  const [browsing, setBrowsing] = useState(false);
+  const [filePath, setFilePath] = useState<string | null>(null);
   const router = useRouter();
 
   const dirty = content !== saved;
@@ -132,6 +139,87 @@ export function NoteEditor({
     insertAtCursor(`\n${result.embed}\n`);
   };
 
+  /** Open or close the `[[` picker depending on what sits just before the caret. */
+  const watchWikilink = (text: string, caret: number) => {
+    const m = /\[\[([^\[\]\n|#]*)$/.exec(text.slice(0, caret));
+    setPick(m ? { query: m[1], start: caret - m[1].length } : null);
+    setActive(0);
+  };
+
+  useEffect(() => {
+    if (!pick || !pick.query.trim()) {
+      setMatches([]);
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/notes/search?q=${encodeURIComponent(pick.query)}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((d) => setMatches(d.results ?? []))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [pick]);
+
+  const choose = (title: string) => {
+    if (!pick) return;
+    const area = areaRef.current;
+    const caret = area ? area.selectionStart : pick.start + pick.query.length;
+    // Swallow a `]]` that is already there (auto-paired or typed ahead).
+    const tail = content.slice(caret).replace(/^\]\]/, "");
+    const next = `${content.slice(0, pick.start)}${title}]]${tail}`;
+    const at = pick.start + title.length + 2;
+    setContent(next);
+    setStatus("idle");
+    setPick(null);
+    requestAnimationFrame(() => {
+      if (!area) return;
+      area.focus();
+      area.selectionStart = area.selectionEnd = at;
+    });
+  };
+
+  /**
+   * Link to a file anywhere on this machine. It is a plain `file://` link, so
+   * the server never touches the file - the browser or Obsidian opens it.
+   */
+  const browse = async (kind: "file" | "folder") => {
+    setBrowsing(true);
+    try {
+      const res = await fetch("/api/local/pick", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      const data = await res.json();
+      if (data.path) insertLocalFile(data.path);
+      else if (data.error) {
+        setStatus("error");
+        setMessage(data.error);
+      }
+    } catch {
+      setStatus("error");
+      setMessage("無法開啟選擇視窗，請直接貼上路徑。");
+    } finally {
+      setBrowsing(false);
+    }
+  };
+
+  const insertLocalFile = (input: string) => {
+    const raw = input.trim().replace(/^["']|["']$/g, "");
+    if (!raw) return;
+    const win = /^[A-Za-z]:[\\/]/.test(raw);
+    if (!win && !raw.startsWith("/") && !/^file:\/\//i.test(raw)) {
+      setStatus("error");
+      setMessage("請輸入絕對路徑（以 / 開頭，或 Windows 的 C:\\…）。");
+      return;
+    }
+    const posix = raw.replace(/^file:\/\//i, "").replace(/\\/g, "/");
+    const href = `file://${win ? "/" : ""}${encodeURI(posix)}`;
+    const name = posix.split("/").filter(Boolean).pop() ?? posix;
+    setMessage("");
+    setFilePath(null);
+    insertAtCursor(`[${name.replace(/[\[\]]/g, "")}](${href})`);
+  };
+
   const imageFrom = (data: DataTransfer | null): File | null =>
     [...(data?.files ?? [])].find((f) => f.type.startsWith("image/")) ?? null;
 
@@ -208,6 +296,15 @@ export function NoteEditor({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setFilePath((v) => (v === null ? "" : null))}
+            title="在游標處插入本地檔案連結（file://）；在「編輯」或「並排」模式下使用。輸入 [[ 可連結其他筆記。"
+            disabled={mode === "preview"}
+          >
+            插入檔案連結
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={copyAll}
             title={
               copied === "fail"
@@ -239,6 +336,36 @@ export function NoteEditor({
           </Button>
         </div>
       </div>
+
+      {filePath !== null ? (
+        <form
+          className="mb-3 flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            insertLocalFile(filePath);
+          }}
+        >
+          <input
+            autoFocus
+            value={filePath}
+            onChange={(e) => setFilePath(e.target.value)}
+            placeholder="貼上完整路徑，或用右邊按鈕選擇"
+            className={cx(inputClass, "flex-1 text-xs")}
+          />
+          <Button type="button" size="sm" variant="outline" disabled={browsing} onClick={() => void browse("file")}>
+            {browsing ? "選擇中…" : "選擇檔案…"}
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={browsing} onClick={() => void browse("folder")}>
+            選擇資料夾…
+          </Button>
+          <Button type="submit" size="sm" variant="primary" disabled={!filePath.trim()}>
+            插入
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setFilePath(null)}>
+            取消
+          </Button>
+        </form>
+      ) : null}
 
       {conflict ? (
         <div className="mb-3 rounded-lg border border-[var(--warn)] bg-warn-soft p-3 text-xs">
@@ -282,12 +409,28 @@ export function NoteEditor({
         )}
       >
         {mode !== "preview" ? (
+          <div className="relative min-h-0">
           <textarea
             ref={areaRef}
             value={content}
             onChange={(e) => {
               setContent(e.target.value);
               setStatus("idle");
+              watchWikilink(e.target.value, e.target.selectionStart);
+            }}
+            onBlur={() => setTimeout(() => setPick(null), 150)}
+            onKeyDown={(e) => {
+              if (!pick || !matches.length) return;
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                const n = matches.length;
+                setActive((a) => (e.key === "ArrowDown" ? (a + 1) % n : (a - 1 + n) % n));
+              } else if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                choose(matches[active].title);
+              } else if (e.key === "Escape") {
+                setPick(null);
+              }
             }}
             onPaste={(e) => {
               const file = imageFrom(e.clipboardData);
@@ -307,6 +450,32 @@ export function NoteEditor({
             spellCheck={false}
             className="h-full w-full resize-none rounded-xl border border-line bg-surface p-4 font-mono text-[13px] leading-relaxed text-ink focus:border-[var(--accent)] focus:outline-none"
           />
+          {pick && matches.length ? (
+            <ul className="absolute left-4 top-4 z-10 max-h-56 w-72 overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-[var(--shadow)]">
+              {matches.map((m, i) => (
+                <li key={m.rel}>
+                  <button
+                    type="button"
+                    // mousedown, not click: the textarea's blur would close the list first.
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      choose(m.title);
+                    }}
+                    className={cx(
+                      "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs",
+                      i === active ? "bg-surface-2" : "hover:bg-surface-2",
+                    )}
+                  >
+                    <span className="truncate">{m.title}</span>
+                    <span className="ml-auto shrink-0 text-[10px] text-dim">
+                      {m.rel.split("/").slice(0, -1).join("/")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          </div>
         ) : null}
         {mode !== "edit" ? (
           <div className="h-full overflow-y-auto rounded-xl border border-line bg-surface p-4">
