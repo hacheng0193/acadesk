@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { coolPanelState } from "@/app/actions/cool";
 import { AssignmentRowItem } from "@/components/AssignmentRowItem";
 import { CheckinButton } from "@/components/CheckinButton";
+import { CoolSyncPanel } from "@/components/CoolSyncPanel";
 import { Badge, Card, Empty, LinkButton, PageHeader, SectionTitle } from "@/components/ui";
 import { addDays, formatHours, startOfWeek, today } from "@/lib/dates";
 import { upcomingOccurrences } from "@/lib/queries/assignments";
@@ -13,7 +15,7 @@ import { LOG_KIND, colorOf } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default function Dashboard() {
+export default async function Dashboard() {
   const day = today();
   const weekStart = startOfWeek(day);
   const weekday = (new Date(`${day}T12:00:00`).getDay() + 6) % 7;
@@ -28,6 +30,7 @@ export default function Dashboard() {
   const classes = coursesOnDay(weekday);
   const milestones = activeMilestones(5);
   const logs = recentLogs(4);
+  const cool = await coolPanelState();
   // Log entries are notes too; don't list the same file twice.
   const logPaths = new Set(logs.map((l) => l.rel_path));
   const notes = recentNotes(5 + logs.length)
@@ -41,7 +44,15 @@ export default function Dashboard() {
       <PageHeader
         title={greeting}
         subtitle={`${day}　·　本週已投入 ${formatHours(weekHours)}${goal ? ` / 目標 ${goal} 小時` : ""}`}
-        actions={<CheckinButton state={{ in: checkin?.check_in_at ?? null, out: checkin?.check_out_at ?? null }} />}
+        actions={
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            <CoolSyncPanel initial={cool} />
+            {/* Same height as the COOL buttons, so the row lines up above the sync caption. */}
+            <div className="flex h-9 items-center">
+              <CheckinButton state={{ in: checkin?.check_in_at ?? null, out: checkin?.check_out_at ?? null }} />
+            </div>
+          </div>
+        }
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">

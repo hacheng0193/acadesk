@@ -68,11 +68,13 @@ npm run autostart:install
 
 **研究日誌就是筆記。** 「＋ 新增紀錄」會在 vault 建立 `<主題跟隨的資料夾>/<日期> <標題>.md`，frontmatter 帶 `type`（`experiment`／`meeting`／`idea`）與 `date`，建檔前表單上就看得到完整路徑，建完直接開啟繼續寫。主題頁的日誌只列標題、日期與前兩行摘要，點進去才看全文。規則很單純：**連到這個主題、且 frontmatter 的 `type` 是上述三種之一的筆記**就會出現在日誌裡，所以在 Obsidian 裡照這個格式寫的筆記也算。主題還沒跟隨任何資料夾時，會自動跟隨以主題命名的資料夾。舊版存在資料庫裡的紀錄，用 `node --experimental-strip-types scripts/migrate-logs-to-vault.mts` 預演、加 `--apply` 搬進 vault（會先留一份資料庫快照）。
 
-**NTU COOL 一鍵同步。** 課程頁的「同步 NTU COOL」用你瀏覽器的登入 cookie 讀取 COOL（只讀，設定方式見下面「選用設定」），會：
+**NTU COOL 一鍵同步。** 總覽與課程頁的「同步 NTU COOL」用你瀏覽器的登入 cookie 讀取 COOL（只讀，設定方式見下面「選用設定」），會：
 
 - 把作業放進行程，標上「COOL 作業」；COOL 顯示已繳交就自動打勾，截止時間改了會跟著更新；同課程、同標題的手動事項會被接管，不會重複建立
 - 列出新公告
 - 列出各課程模組裡的檔案，讓你勾選要下載到 vault 的 `<課名>/Lectures/`，其餘可以先從 COOL 直接預覽，或略過
+
+按鈕底下會標上次同步的時間。服務開著的時候，08:00–18:00 之間只要距離上次同步超過一小時就會自動同步一次，有新作業或新公告會跳 macOS 通知（第一次可能要到「系統設定 → 通知」允許「工序指令編寫程式」／Script Editor）；cookie 過期也會通知一次。不想要的話在 `.env.local` 設 `COOL_AUTO_SYNC=0`。
 
 研究主題頁有「講義」按鈕，直接跳到該課的講義。
 

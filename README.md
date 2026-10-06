@@ -64,7 +64,11 @@ A today's-todo list and a research timer live in the sidebar on every page.
   item with the same title is adopted rather than duplicated), new
   announcements, and the files in each course's modules. You pick which files
   to download into `<vault>/<course>/Lectures/`; the rest can be previewed
-  straight from COOL or skipped.
+  straight from COOL or skipped. The button sits on the Overview and Courses
+  pages with the last sync time under it. While the server runs it also syncs
+  on its own between 08:00 and 18:00 once the last sync is over an hour old,
+  and posts a macOS notification for new assignments or announcements (or,
+  once, for an expired cookie). Turn it off with `COOL_AUTO_SYNC=0`.
 - **PDFs open in a built-in viewer** (PDF.js), so they display even in browsers
   without a PDF plugin. Downloaded files can also be opened in Preview or shown
   in Finder.

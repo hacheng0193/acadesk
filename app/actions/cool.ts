@@ -18,6 +18,7 @@ import {
   type DownloadedFile,
   type NewFile,
 } from "@/lib/cool";
+import { coolAutoSyncEnabled } from "@/lib/cool-auto";
 
 export type CoolPanelState = {
   configured: boolean;
@@ -25,6 +26,7 @@ export type CoolPanelState = {
   downloaded: DownloadedFile[];
   announcements: Announcement[];
   lastRun: CoolRun | null;
+  autoSync: boolean;
 };
 
 export async function coolPanelState(): Promise<CoolPanelState> {
@@ -34,6 +36,7 @@ export async function coolPanelState(): Promise<CoolPanelState> {
     downloaded: downloadedFiles(),
     announcements: unreadAnnouncements(),
     lastRun: lastRun(),
+    autoSync: coolAutoSyncEnabled(),
   };
 }
 

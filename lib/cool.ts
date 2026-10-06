@@ -265,6 +265,8 @@ export type SyncSummary = {
   newAnnouncements: number;
   matched: string[];
   errors: Record<string, string>;
+  /** "課名：標題" of what is worth a notification: new open assignments and new announcements. */
+  fresh?: { assignments: string[]; announcements: string[] };
 };
 
 export type CoolRun = {
@@ -274,6 +276,8 @@ export type CoolRun = {
   lines: { t: string; msg: string }[];
   summary: SyncSummary | null;
   error: string | null;
+  /** Started by the hourly auto-sync rather than the button. */
+  auto?: boolean;
 };
 
 /** Files in the course's modules, in module order (same as cool.py's module_files). */
@@ -385,6 +389,7 @@ async function syncAssignments(
         status === "done" ? now : null,
       );
       counts.added++;
+      if (status === "todo") counts.fresh?.assignments.push(`${course.name}：${title}`);
       const reason = isDone ? "，已繳交 → 標成完成" : pastDue ? "，已過期自動標完成" : "";
       log(`[${course.name}] 作業新增：${title}（截止 ${due?.slice(0, 16).replace("T", " ") ?? "無"}${reason}）`);
       continue;
@@ -412,7 +417,13 @@ async function syncAssignments(
   }
 }
 
-async function syncAnnouncements(client: CoolClient, course: Course, cid: number, log: Log): Promise<number> {
+async function syncAnnouncements(
+  client: CoolClient,
+  course: Course,
+  cid: number,
+  log: Log,
+  fresh: string[],
+): Promise<number> {
   const items = await client.get<CanvasAnnouncement[]>(`/api/v1/courses/${cid}/discussion_topics`, {
     only_announcements: "true",
     per_page: 50,
@@ -431,6 +442,7 @@ async function syncAnnouncements(client: CoolClient, course: Course, cid: number
     const r = insert.run(a.id, course.id, a.title, a.message ?? "", posted, a.html_url ?? "", old);
     if (r.changes && !old) {
       added++;
+      fresh.push(`${course.name}：${a.title}`);
       log(`[${course.name}]   新公告：${a.title}`);
     }
   }
@@ -444,7 +456,7 @@ export function syncRunning(): boolean {
 }
 
 /** One sync at a time; every step is written to the run's log as it happens. */
-export async function syncCool(): Promise<CoolRun> {
+export async function syncCool({ auto = false }: { auto?: boolean } = {}): Promise<CoolRun> {
   const run: CoolRun = {
     started: toLocalIso(new Date()),
     finished: null,
@@ -452,6 +464,7 @@ export async function syncCool(): Promise<CoolRun> {
     lines: [],
     summary: null,
     error: null,
+    auto,
   };
   const log: Log = (msg) => run.lines.push({ t: toLocalIso(new Date()).slice(11), msg });
 
@@ -471,6 +484,7 @@ export async function syncCool(): Promise<CoolRun> {
     newAnnouncements: 0,
     matched: [],
     errors: {},
+    fresh: { assignments: [], announcements: [] },
   };
   try {
     const client = new CoolClient();
@@ -504,7 +518,7 @@ export async function syncCool(): Promise<CoolRun> {
       const steps: [string, () => Promise<void>][] = [
         ["講義列表", async () => void (summary.newFiles += await syncFiles(client, course, cid, log))],
         ["作業", () => syncAssignments(client, course, cid, log, summary)],
-        ["公告", async () => void (summary.newAnnouncements += await syncAnnouncements(client, course, cid, log))],
+        ["公告", async () => void (summary.newAnnouncements += await syncAnnouncements(client, course, cid, log, summary.fresh!.announcements))],
       ];
       for (const [label, step] of steps) {
         try {

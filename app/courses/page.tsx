@@ -28,7 +28,7 @@ export default async function CoursesPage() {
         title="課程"
         subtitle={`本學期 ${active.length} 門課　·　共 ${credits} 學分`}
         actions={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-start justify-end gap-2">
             <CoolSyncPanel initial={cool} />
             <CourseForm
               projects={projects}

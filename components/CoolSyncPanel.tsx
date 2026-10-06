@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   coolPanelState,
   downloadCoolFiles,
@@ -11,7 +11,8 @@ import {
   type CoolPanelState,
   type DownloadResult,
 } from "@/app/actions/cool";
-import type { DownloadedFile, NewFile } from "@/lib/cool";
+import type { CoolRun, DownloadedFile, NewFile } from "@/lib/cool";
+import { toLocalIso } from "@/lib/dates";
 import { Badge, Button, buttonClass, cx } from "./ui";
 import { Modal } from "./ui/Modal";
 
@@ -24,6 +25,8 @@ export function CoolSyncPanel({ initial }: { initial: CoolPanelState }) {
   const [state, setState] = useState(initial);
   const [syncing, startSync] = useTransition();
   const [justSynced, setJustSynced] = useState(false);
+  // The server may have synced on its own (hourly auto-sync); take fresh props on re-render.
+  useEffect(() => setState(initial), [initial]);
 
   const pending = state.files.length + state.announcements.length;
 
@@ -37,21 +40,25 @@ export function CoolSyncPanel({ initial }: { initial: CoolPanelState }) {
 
   return (
     <>
-      <div className="flex items-center gap-1.5">
-        {pending ? (
-          <button type="button" onClick={() => setOpen(true)} className={buttonClass({ variant: "ghost" })}>
-            COOL 待處理 <Badge tone="accent">{pending}</Badge>
-          </button>
-        ) : null}
-        <Button variant="outline" onClick={sync} disabled={syncing || !state.configured}>
-          {syncing ? "同步中…" : "同步 NTU COOL"}
-        </Button>
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex items-center gap-1.5">
+          {pending ? (
+            <button type="button" onClick={() => setOpen(true)} className={buttonClass({ variant: "ghost" })}>
+              COOL 待處理 <Badge tone="accent">{pending}</Badge>
+            </button>
+          ) : null}
+          <Button variant="outline" onClick={sync} disabled={syncing || !state.configured}>
+            {syncing ? "同步中…" : "同步 NTU COOL"}
+          </Button>
+        </div>
+        {state.configured ? (
+          <LastSynced run={state.lastRun} autoSync={state.autoSync} />
+        ) : (
+          <p className="text-right text-[11px] text-dim">
+            要同步 COOL：在 .env.local 設定 COOL_COOKIE（瀏覽器登入 COOL 後複製 Cookie），再重啟服務
+          </p>
+        )}
       </div>
-      {!state.configured ? (
-        <p className="w-full text-right text-[11px] text-dim">
-          要同步 COOL：在 .env.local 設定 COOL_COOKIE（瀏覽器登入 COOL 後複製 Cookie），再重啟服務
-        </p>
-      ) : null}
 
       <Modal title="NTU COOL 同步" open={open} onClose={() => setOpen(false)} width="max-w-2xl">
         <Body
@@ -63,6 +70,27 @@ export function CoolSyncPanel({ initial }: { initial: CoolPanelState }) {
         />
       </Modal>
     </>
+  );
+}
+
+function LastSynced({ run, autoSync }: { run: CoolRun | null; autoSync: boolean }) {
+  const hint = autoSync ? "08:00–18:00 間每小時自動同步，有新作業或公告會跳通知" : undefined;
+  if (!run) {
+    return (
+      <p className="text-[11px] text-dim" title={hint}>
+        還沒同步過
+      </p>
+    );
+  }
+  const day = run.started.slice(0, 10);
+  const time = run.started.slice(11, 16);
+  const when = day === toLocalIso(new Date()).slice(0, 10) ? `今天 ${time}` : `${day.slice(5).replace("-", "/")} ${time}`;
+  return (
+    <p className={cx("text-[11px]", run.error ? "text-danger" : "text-dim")} title={run.error ?? hint}>
+      上次同步：{when}
+      {run.auto ? "（自動）" : ""}
+      {run.error ? " · 失敗" : ""}
+    </p>
   );
 }
 
