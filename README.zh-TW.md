@@ -36,7 +36,7 @@ npm run autostart:install
 
 | 頁面 | 用途 |
 |---|---|
-| **總覽** | 今天的課、七天內的事項、進行中的里程碑、今日時數與打卡 |
+| **總覽** | 今天的課、七天內的事項、進行中的里程碑、今日時數與打卡、同步 NTU COOL |
 | **行程** | 作業、考試、演講、週報、meeting。看板與月曆兩種檢視，可設每週／每兩週重複 |
 | **課程** | 課程資料與週課表；可一併建立對應的研究主題，從課表方塊直接點過去。可一鍵同步 NTU COOL |
 | **講義** | NTU COOL 上各課程的檔案，依模組（週次）排列；可預覽、下載到 vault 或略過 |
@@ -100,7 +100,7 @@ npm run autostart:install
    COOL_COOKIE=_normandy_session=...; log_session_id=...
    ```
 
-4. 重啟服務，到課程頁按「同步 NTU COOL」
+4. 重啟服務，到總覽或課程頁按「同步 NTU COOL」；之後白天也會每小時自動同步
 
 在 Console 打 `document.cookie` 拿不到——`_normandy_session` 是 HttpOnly，只能從 Network 或 Application → Cookies 複製。
 
@@ -187,7 +187,7 @@ tail -f ~/Library/Logs/acadesk-backup.log    # 備份
 
 **搜尋找不到東西** — 設定頁有「重建搜尋索引」。
 
-**COOL 同步說 cookie 被拒絕** — 登入 session 過期了。到瀏覽器重新登入 COOL，照上面的步驟重新複製 Cookie 到 `.env.local`，再重啟服務。
+**COOL 同步說 cookie 被拒絕（或跳出「NTU COOL 自動同步失敗」通知）** — 登入 session 過期了。到瀏覽器重新登入 COOL，照上面的步驟重新複製 Cookie 到 `.env.local`，再重啟服務。
 
 **還原資料** — 步驟在 [scripts/launchd.md](scripts/launchd.md)，重點是**先停服務再覆蓋檔案**。從 GitHub 還原得到的是不含被排除項目的部分資料，完整還原一定要用本機快照。
 
@@ -196,7 +196,7 @@ tail -f ~/Library/Logs/acadesk-backup.log    # 備份
 ## 已知限制
 
 - **單人使用、沒有登入機制。** 它預設這是你自己的電腦，所以服務只聽 `127.0.0.1`，手機或別台電腦連不到。不要用反向代理或通道把它開到網路上——設了 COOL cookie 之後，連得到的人就能讀你的 COOL 課程。
-- **對外連線只有兩處**：論文的 DOI／arXiv 查詢（Crossref／arXiv），送出的只有編號本身；以及 NTU COOL，只有設定 `COOL_COOKIE` 才會連。BibTeX 完全在本機解析。
+- **對外連線只有兩處**：論文的 DOI／arXiv 查詢（Crossref／arXiv），送出的只有編號本身；以及 NTU COOL，只有設定 `COOL_COOKIE` 才會連（設了之後 08:00–18:00 每小時也會自動連，`COOL_AUTO_SYNC=0` 可關掉）。BibTeX 完全在本機解析。
 - **部分按鈕只在 macOS 有用**：「Finder」、「預覽程式」與開啟本機 `file://` 連結都靠 `open` 指令，其餘功能各平台都能用。
 - **課表匯入是針對臺大課程網**（`course.ntu.edu.tw`）的貼上格式寫的。別的學校對不上，手動輸入課程即可，其他功能不依賴它。
 - **介面是繁體中文**，程式碼與註解是英文。

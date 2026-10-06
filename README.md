@@ -15,7 +15,7 @@ database is a single SQLite file you own.
 
 | Page | What it does |
 |---|---|
-| **Overview** | Today's classes, next 7 days, active milestones, today's hours, lab check-in |
+| **Overview** | Today's classes, next 7 days, active milestones, today's hours, lab check-in, NTU COOL sync |
 | **Schedule** | Assignments, exams, talks, weekly reports, meetings — board and calendar views, weekly/biweekly repeats |
 | **Courses** | Course records and a weekly timetable; can spin up a matching research topic and link straight to it. Optional one-click sync with NTU COOL |
 | **Lectures** | Lecture files from NTU COOL per course and module — preview, download into your vault, or skip |
@@ -142,11 +142,13 @@ request header into `.env.local`:
 COOL_COOKIE=_normandy_session=...; log_session_id=...
 ```
 
-Restart the server, then press 「同步 NTU COOL」 on the Courses page. Courses
+Restart the server, then press 「同步 NTU COOL」 on the Overview or Courses page;
+from then on it also syncs hourly on its own during the day. Courses
 are matched to COOL by course code, then by name; fix any match in the course's
 edit form (or set it to 不同步). Downloading lecture files needs the Obsidian
 vault configured. The session expires when you log out of COOL or after a while
-— the sync then says so, and you paste a fresh cookie. Only `GET` requests are
+— the sync then says so (the auto-sync posts a notification once), and you
+paste a fresh cookie. Only `GET` requests are
 ever sent, and the cookie never leaves this machine except to COOL itself.
 COOL runs on Canvas LMS, so `COOL_BASE_URL` can point at another school's
 Canvas instance; only NTU COOL has been tried.
@@ -172,7 +174,8 @@ A fresh clone contains **none** of the above.
   who can reach it can read your COOL courses.
 - **Outbound requests** go to two places only: the paper metadata lookup
   (Crossref / arXiv), which sends nothing but the identifier you typed, and
-  NTU COOL, only if you set `COOL_COOKIE`. BibTeX is parsed locally.
+  NTU COOL, only if you set `COOL_COOKIE` (then also automatically, hourly
+  between 08:00 and 18:00, unless `COOL_AUTO_SYNC=0`). BibTeX is parsed locally.
 - **Some buttons are macOS-only**: 「Finder」, 「預覽程式」 and opening local
   `file://` links use the `open` command. The rest works anywhere.
 - **The timetable importer targets NTU's course site** (`course.ntu.edu.tw`)
