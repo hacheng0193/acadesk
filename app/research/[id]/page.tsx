@@ -15,6 +15,7 @@ import { foldersFor, notesFor } from "@/lib/queries/notes";
 import { papersForProject } from "@/lib/queries/papers";
 import { defaultLogFolder, logsFor } from "@/lib/queries/logs";
 import { getProject, listMilestones, listProjects } from "@/lib/queries/research";
+import { db } from "@/lib/db";
 import { reviewsForProject } from "@/lib/queries/reviews";
 import { projectHours, projectHoursBetween } from "@/lib/queries/time";
 import { LOG_KIND, colorOf, linkHost, parseLinks } from "@/lib/types";
@@ -54,6 +55,13 @@ export default async function ProjectPage({
   const weekHours = projectHoursBetween(project.id, weekStart, addDays(weekStart, 6));
   const links = parseLinks(project.links_json);
   const allProjects = listProjects();
+  // Courses feeding this topic, for the link to their lecture files.
+  const lectureCourses = db
+    .prepare(
+      `SELECT c.id, c.name, (SELECT COUNT(*) FROM cool_files f WHERE f.course_id = c.id AND f.status = 'new') AS fresh
+       FROM courses c WHERE c.project_id = ? AND c.archived = 0 AND c.cool_course_id > 0 ORDER BY c.name`,
+    )
+    .all(project.id) as { id: number; name: string; fresh: number }[];
 
   return (
     <>
@@ -74,6 +82,16 @@ export default async function ProjectPage({
         }
         actions={
           <>
+            {lectureCourses.map((c) => (
+              <Link
+                key={c.id}
+                href={`/lectures?course=${c.id}`}
+                className={buttonClass({ variant: "outline" })}
+              >
+                {lectureCourses.length > 1 ? `${c.name}的講義` : "講義"}
+                {c.fresh ? <Badge tone="accent">{c.fresh} 新</Badge> : null}
+              </Link>
+            ))}
             <BackupToggle
               id={project.id}
               enabled={!!project.backup_enabled}

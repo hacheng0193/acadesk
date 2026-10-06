@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { saveCourse } from "@/app/actions/courses";
 import { COLORS, WEEKDAYS, colorOf, type Course, type Project, type Slot } from "@/lib/types";
 import type { NtuCourse } from "@/lib/ntu-course";
+import type { CoolCourse } from "@/lib/cool";
 import { NtuCourseImport } from "./NtuCourseImport";
 import { Button, Field, cx, inputClass } from "./ui";
 import { Modal, ModalActions } from "./ui/Modal";
@@ -21,10 +22,12 @@ export function CourseForm({
   course,
   trigger,
   projects,
+  coolCourses = [],
 }: {
   course?: Course;
   trigger: React.ReactNode;
   projects: Project[];
+  coolCourses?: CoolCourse[];
 }) {
   return (
     <Modal
@@ -33,7 +36,7 @@ export function CourseForm({
       triggerClassName="contents"
       width="max-w-xl"
     >
-      {(close) => <Inner course={course} projects={projects} close={close} />}
+      {(close) => <Inner course={course} projects={projects} coolCourses={coolCourses} close={close} />}
     </Modal>
   );
 }
@@ -41,12 +44,15 @@ export function CourseForm({
 function Inner({
   course,
   projects,
+  coolCourses,
   close,
 }: {
   course?: Course;
   projects: Project[];
+  coolCourses: CoolCourse[];
   close: () => void;
 }) {
+  const coolId = course?.cool_course_id ?? null;
   const [slots, setSlots] = useState<Slot[]>(course ? parse(course.schedule_json) : []);
   const [color, setColor] = useState(course?.color ?? "blue");
   const formRef = useRef<HTMLFormElement>(null);
@@ -113,6 +119,29 @@ function Inner({
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               連結到：{p.title}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
+        label="NTU COOL 課程"
+        hint={
+          coolCourses.length
+            ? "同步時從這門 COOL 課程抓作業、公告與講義"
+            : "還沒連上 COOL（.env.local 設定 COOL_COOKIE），先選自動比對即可"
+        }
+      >
+        <select name="cool_course_id" defaultValue={coolId === null ? "" : String(coolId)} className={inputClass}>
+          <option value="">自動比對（依課號、課名）</option>
+          <option value="0">不同步</option>
+          {coolId && !coolCourses.some((c) => c.id === coolId) ? (
+            <option value={coolId}>COOL 課程 #{coolId}</option>
+          ) : null}
+          {coolCourses.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+              {c.course_code && !c.name.includes(c.course_code) ? `（${c.course_code}）` : ""}
             </option>
           ))}
         </select>

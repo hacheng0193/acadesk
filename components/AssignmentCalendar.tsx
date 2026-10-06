@@ -91,7 +91,7 @@ export function AssignmentCalendar({
                         }}
                         title={`${o.at ? `${o.at.slice(11, 16)} ` : ""}${o.row.title}${
                           o.row.location ? ` @${o.row.location}` : ""
-                        }`}
+                        }${o.row.cool_id ? "（COOL 作業）" : ""}`}
                       >
                         {o.at ? (
                           <span className="shrink-0 tabular-nums opacity-85">

@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { deleteCourse, toggleArchiveCourse } from "@/app/actions/courses";
+import { coolPanelState } from "@/app/actions/cool";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { CoolSyncPanel } from "@/components/CoolSyncPanel";
 import { CourseForm } from "@/components/CourseForm";
 import { Timetable } from "@/components/Timetable";
 import { Badge, Card, Empty, PageHeader, SectionTitle, buttonClass } from "@/components/ui";
+import { coolCoursesForPicker } from "@/lib/cool";
 import { listCourses, parseSlots } from "@/lib/queries/courses";
 import { listProjects } from "@/lib/queries/research";
 import { colorOf, WEEKDAYS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default function CoursesPage() {
+export default async function CoursesPage() {
   const all = listCourses(true);
+  const [coolCourses, cool] = await Promise.all([coolCoursesForPicker(), coolPanelState()]);
   const projects = listProjects();
   const active = all.filter((c) => !c.archived);
   const archived = all.filter((c) => c.archived);
@@ -24,10 +28,14 @@ export default function CoursesPage() {
         title="課程"
         subtitle={`本學期 ${active.length} 門課　·　共 ${credits} 學分`}
         actions={
-          <CourseForm
-            projects={projects}
-            trigger={<span className={buttonClass({ variant: "primary" })}>＋ 新增課程</span>}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <CoolSyncPanel initial={cool} />
+            <CourseForm
+              projects={projects}
+              coolCourses={coolCourses}
+              trigger={<span className={buttonClass({ variant: "primary" })}>＋ 新增課程</span>}
+            />
+          </div>
         }
       />
 
@@ -48,7 +56,10 @@ export default function CoursesPage() {
                   style={{ background: colorOf(course.color) }}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{course.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-medium">{course.name}</span>
+                    {course.cool_course_id ? <Badge tone="accent">COOL</Badge> : null}
+                  </div>
                   <div className="mt-0.5 truncate text-xs text-dim">
                     {[course.code, course.instructor, `${course.credits} 學分`]
                       .filter(Boolean)
@@ -72,6 +83,7 @@ export default function CoursesPage() {
                 <CourseForm
                   course={course}
                   projects={projects}
+                  coolCourses={coolCourses}
                   trigger={<span className={buttonClass({ variant: "ghost", size: "sm" })}>編輯</span>}
                 />
                 {course.project_id ? (

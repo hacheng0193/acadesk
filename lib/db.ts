@@ -27,6 +27,9 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   { table: "courses", column: "project_id", definition: "INTEGER REFERENCES projects(id)" },
   { table: "projects", column: "kind", definition: "TEXT NOT NULL DEFAULT 'research'" },
   { table: "projects", column: "links_json", definition: "TEXT NOT NULL DEFAULT '[]'" },
+  { table: "courses", column: "cool_course_id", definition: "INTEGER" },
+  { table: "assignments", column: "cool_id", definition: "TEXT" },
+  { table: "cool_files", column: "position", definition: "INTEGER NOT NULL DEFAULT 0" },
 ];
 
 function migrate(database: Database.Database): void {
@@ -35,6 +38,10 @@ function migrate(database: Database.Database): void {
     if (columns.some((c) => c.name === column)) continue;
     database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
+  // Indexes on added columns can only exist once the column does.
+  database.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_assignments_cool ON assignments(cool_id) WHERE cool_id IS NOT NULL",
+  );
 }
 
 function open(): Database.Database {

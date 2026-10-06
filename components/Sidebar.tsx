@@ -55,6 +55,7 @@ export function Sidebar() {
           { href: "/", label: "總覽", icon: "◎" },
           { href: "/assignments", label: "行程", icon: "✓", badge: overdueCount() },
           { href: "/courses", label: "課程", icon: "▤" },
+          { href: "/lectures", label: "講義", icon: "▣" },
           { href: "/research", label: "研究", icon: "✦" },
           { href: "/notes", label: "筆記", icon: "✎" },
           { href: "/papers", label: "文獻", icon: "❑" },

@@ -124,6 +124,20 @@ export async function detachPdf(paperId: number) {
 }
 
 /** Reveal the PDF in Finder - handy when you want the original file itself. */
+/** Open the PDF in the Mac's default app (Preview, usually) on the machine the server runs on. */
+export async function openPdfInApp(paperId: number): Promise<{ ok: boolean; error?: string }> {
+  const row = db.prepare("SELECT file_path FROM papers WHERE id = ?").get(paperId) as
+    | { file_path: string }
+    | undefined;
+  if (!row?.file_path) return { ok: false, error: "沒有附加檔案" };
+  try {
+    await execFile("open", [resolveInLibrary(row.file_path)]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "無法開啟檔案" };
+  }
+}
+
 export async function revealPdf(paperId: number): Promise<{ ok: boolean; error?: string }> {
   const row = db.prepare("SELECT file_path FROM papers WHERE id = ?").get(paperId) as
     | { file_path: string }

@@ -42,6 +42,8 @@ export function AssignmentRowItem({ occurrence }: { occurrence: Occurrence }) {
       <span className={cx("flex-1 truncate text-sm", done && "text-dim line-through")}>
         {row.title}
       </span>
+      {/* Synced from NTU COOL (see lib/cool.ts), not entered by hand. */}
+      {row.cool_id ? <Badge tone="accent">COOL 作業</Badge> : null}
       <Badge>
         <span
           className="h-1.5 w-1.5 rounded-full"

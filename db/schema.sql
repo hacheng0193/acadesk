@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS courses (
   archived      INTEGER NOT NULL DEFAULT 0,
   -- A real reference, not a name match: renaming either side keeps the link.
   project_id    INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+  -- NTU COOL course this one syncs from. NULL = not matched yet (sync tries to
+  -- match it automatically), 0 = the user chose not to sync it.
+  cool_course_id INTEGER,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -38,6 +41,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   end_at       TEXT,
   repeat_rule  TEXT NOT NULL DEFAULT 'none',
   repeat_until TEXT,
+  -- COOL assignment id when the row came from (or was adopted by) a COOL sync.
+  cool_id      TEXT,
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_assignments_due ON assignments(due_at);
@@ -274,3 +279,28 @@ END;
 CREATE TRIGGER IF NOT EXISTS search_reviews_ad AFTER DELETE ON reviews BEGIN
   DELETE FROM search_index WHERE kind = 'review' AND ref_id = old.id;
 END;
+
+-- Files seen in a course's COOL modules. 'new' ones are offered for download;
+-- the user decides which to fetch into the vault and which to ignore.
+CREATE TABLE IF NOT EXISTS cool_files (
+  cool_file_id  INTEGER PRIMARY KEY,
+  course_id     INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  module        TEXT NOT NULL DEFAULT '',
+  html_url      TEXT NOT NULL DEFAULT '',
+  -- Order within the course's modules on COOL, so the lectures page follows it.
+  position      INTEGER NOT NULL DEFAULT 0,
+  status        TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','downloaded','ignored')),
+  local_path    TEXT NOT NULL DEFAULT '',
+  first_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS cool_announcements (
+  cool_id      INTEGER PRIMARY KEY,
+  course_id    INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  title        TEXT NOT NULL,
+  message_html TEXT NOT NULL DEFAULT '',
+  posted_at    TEXT,
+  html_url     TEXT NOT NULL DEFAULT '',
+  read         INTEGER NOT NULL DEFAULT 0
+);

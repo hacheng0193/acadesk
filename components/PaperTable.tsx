@@ -112,9 +112,7 @@ export function PaperTable({
                   </span>
                 ) : (
                   <a
-                    href={`/api/papers/${p.id}/file`}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={`/view/paper/${p.id}`}
                     className="shrink-0 text-xs text-[var(--accent)] hover:underline"
                     title="開啟 PDF"
                   >

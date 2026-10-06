@@ -58,9 +58,7 @@ export function PdfAttachment({
           </div>
           {!missing ? (
             <a
-              href={`/api/papers/${paperId}/file`}
-              target="_blank"
-              rel="noreferrer"
+              href={`/view/paper/${paperId}`}
               className="shrink-0 text-xs text-[var(--accent)] hover:underline"
             >
               開啟

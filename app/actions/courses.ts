@@ -35,6 +35,8 @@ function fields(fd: FormData) {
     // changed, a hardcoded copy here silently rejected every new colour name.
     color: oneOf(fd, "color", COLORS, "blue"),
     schedule_json: JSON.stringify(readSlots(fd)),
+    // "" = let the next COOL sync match it, "0" = don't sync, else a COOL course id.
+    cool_course_id: str(fd, "cool_course_id") === "" ? null : (int(fd, "cool_course_id") ?? null),
   };
 }
 
@@ -63,13 +65,16 @@ export async function saveCourse(fd: FormData) {
   if (id) {
     db.prepare(
       `UPDATE courses SET code=@code, name=@name, instructor=@instructor, credits=@credits,
-       semester=@semester, color=@color, schedule_json=@schedule_json, project_id=@project_id
+       semester=@semester, color=@color, schedule_json=@schedule_json, project_id=@project_id,
+       cool_course_id=@cool_course_id
        WHERE id=@id`,
     ).run({ ...f, project_id: projectId, id });
   } else {
     db.prepare(
-      `INSERT INTO courses (code, name, instructor, credits, semester, color, schedule_json, project_id)
-       VALUES (@code, @name, @instructor, @credits, @semester, @color, @schedule_json, @project_id)`,
+      `INSERT INTO courses (code, name, instructor, credits, semester, color, schedule_json, project_id,
+                            cool_course_id)
+       VALUES (@code, @name, @instructor, @credits, @semester, @color, @schedule_json, @project_id,
+               @cool_course_id)`,
     ).run({ ...f, project_id: projectId });
   }
   revalidatePath("/courses");

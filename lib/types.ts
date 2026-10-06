@@ -13,6 +13,8 @@ export type Course = {
   archived: number;
   /** Research topic this course feeds into, if any. */
   project_id: number | null;
+  /** NTU COOL course id; null = auto-match on next sync, 0 = don't sync. */
+  cool_course_id: number | null;
 };
 
 export type Slot = { day: number; start: string; end: string; room?: string };
@@ -37,6 +39,7 @@ export type Assignment = {
   end_at: string | null;
   repeat_rule: RepeatRule;
   repeat_until: string | null;
+  cool_id: string | null;
 };
 
 /** One dated instance of an item. Non-repeating items have exactly one. */

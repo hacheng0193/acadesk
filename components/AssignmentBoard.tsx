@@ -138,6 +138,7 @@ export function AssignmentBoard({ cards, courses }: { cards: BoardCard[]; course
                             {KIND_LABEL[row.kind]}
                           </Badge>
                           {row.course_name ? <Badge>{row.course_name}</Badge> : null}
+                          {row.cool_id ? <Badge tone="accent">COOL 作業</Badge> : null}
                           {row.repeat_rule !== "none" ? (
                             <Badge tone="accent">
                               {row.repeat_rule === "weekly" ? "每週" : "每兩週"}
