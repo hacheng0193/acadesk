@@ -4,14 +4,20 @@ import { db, getSetting, setSetting } from "./db";
 import { toLocalIso } from "./dates";
 import type { Course } from "./types";
 import { vaultRoot } from "./vault";
+import { coolLogin, CoolLoginError, keychainConfigured } from "./cool-login";
+import { notify } from "./notify";
 
 /**
  * Read-only NTU COOL (Canvas LMS) client and sync, ported from the course
  * dashboard's cool.py.
  *
- * Auth is the browser's session `Cookie` header, from COOL_COOKIE in .env.local.
- * A session cookie can do anything the account can, so this only ever issues GET
- * requests - nothing here writes to COOL.
+ * Auth is a COOL session cookie. Preferred: the NTU account in the macOS
+ * keychain (see cool-login.ts); the server logs in with it, keeps the cookie in
+ * the settings table, and logs in again - with a notification and a line in
+ * data/cool-auth.log - whenever COOL refuses the cookie. Fallback: a browser
+ * `Cookie` header pasted into COOL_COOKIE, which stops working when that login
+ * session ends. Either can do anything the account can, so this only ever
+ * issues GET requests - nothing here writes to COOL.
  *
  * Sync writes:
  * - assignments rows, keyed by `cool_id`
@@ -35,18 +41,86 @@ function oneLine(text: string): string {
   return text.replace(/[\r\n]/g, "").trim();
 }
 
+function envCookie(): string {
+  return oneLine(process.env.COOL_COOKIE ?? "");
+}
+
 export function coolConfigured(): boolean {
-  return !!oneLine(process.env.COOL_COOKIE ?? "");
+  return keychainConfigured() || !!envCookie();
 }
 
-function coolCookie(): string {
-  const cookie = oneLine(process.env.COOL_COOKIE ?? "");
-  if (!cookie) throw new CoolAuthError("找不到課程網認證：請在 .env.local 設定 COOL_COOKIE，並重啟服務");
-  return cookie;
+/** How we authenticate, for the first line of the sync log. */
+function authLabel(): string {
+  return keychainConfigured() ? "鑰匙圈帳密自動登入" : "瀏覽器 cookie COOL_COOKIE";
 }
 
-const EXPIRED =
-  "課程網 cookie 被拒絕（登入 session 過期）：到瀏覽器重新登入 COOL，重新複製 Cookie 到 .env.local 的 COOL_COOKIE，再重啟服務";
+// ---------- keychain login ----------
+
+const SESSION_KEY = "cool_session_cookie";
+/** Set when the SSO turned the keychain password down; only a manual sync tries again. */
+const BLOCKED_KEY = "cool_login_blocked";
+
+type LoginOpts = { manual?: boolean; log?: Log };
+
+/** One line per login attempt in data/cool-auth.log, which no sync overwrites. */
+function authLog(line: string) {
+  const full = `${toLocalIso(new Date())} ${line}`;
+  console.log(`[cool-auth] ${full}`);
+  try {
+    fs.mkdirSync(path.join(process.cwd(), "data"), { recursive: true });
+    fs.appendFileSync(path.join(process.cwd(), "data", "cool-auth.log"), full + "\n");
+  } catch (e) {
+    console.error("[cool-auth] could not write the log:", (e as Error).message);
+  }
+}
+
+let loginInFlight: Promise<string> | null = null;
+
+/**
+ * Log in again because COOL refused `stale` (null: no session stored yet).
+ * Concurrent callers share one login, and a caller still holding a cookie
+ * someone else already replaced just gets the new one.
+ */
+async function relogin(stale: string | null, opts: LoginOpts): Promise<string> {
+  const current = getSetting(SESSION_KEY);
+  if (current && current !== stale) return current;
+  loginInFlight ??= doLogin(stale, opts).finally(() => (loginInFlight = null));
+  return loginInFlight;
+}
+
+async function doLogin(stale: string | null, opts: LoginOpts): Promise<string> {
+  const trigger = stale ? "COOL 拒絕連線" : "還沒有登入 cookie";
+  const verb = stale ? "重新登入" : "登入";
+  const blocked = getSetting(BLOCKED_KEY);
+  if (blocked && !opts.manual) {
+    const msg = `自動登入已暫停（${blocked}）：確認鑰匙圈裡的台大帳密正確後，按一次「同步 NTU COOL」再試`;
+    authLog(`${trigger}，${msg}`);
+    opts.log?.(`✗ ${trigger}，${msg}`);
+    throw new CoolAuthError(msg);
+  }
+  opts.log?.(`${trigger}，用鑰匙圈帳密${verb}…`);
+  try {
+    const cookie = await coolLogin(baseUrl());
+    setSetting(SESSION_KEY, cookie);
+    if (blocked) setSetting(BLOCKED_KEY, "");
+    authLog(`${trigger}，已自動${verb}`);
+    opts.log?.(`已自動${verb} COOL`);
+    if (stale) notify("NTU COOL 已自動重新登入", "COOL 拒絕了舊的登入，已用鑰匙圈帳密重新登入");
+    return cookie;
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (e instanceof CoolLoginError && e.badCredentials) setSetting(BLOCKED_KEY, msg);
+    authLog(`${trigger}，自動${verb}失敗：${msg}`);
+    opts.log?.(`✗ 自動${verb}失敗：${msg}`);
+    throw new CoolAuthError(`自動${verb} COOL 失敗：${msg}`);
+  }
+}
+
+function expiredMessage(): string {
+  return keychainConfigured()
+    ? "COOL 拒絕了登入 cookie"
+    : "課程網 cookie 被拒絕（登入 session 過期）：重新複製 Cookie 到 .env.local 的 COOL_COOKIE 再重啟服務；把台大帳密存進鑰匙圈就能自動登入（見 README）";
+}
 
 export function nextLink(header: string | null): string | null {
   const m = header?.match(/<([^>]+)>;\s*rel="next"/);
@@ -54,25 +128,64 @@ export function nextLink(header: string | null): string | null {
 }
 
 class CoolClient {
-  private cookie = coolCookie();
+  private cookie: string | null = null;
+  private relogged = false;
+
+  /** `manual`: started by the user, so a login paused after a wrong password may be tried again. */
+  constructor(private opts: LoginOpts = {}) {}
+
+  private async auth(): Promise<Record<string, string>> {
+    if (this.cookie === null) {
+      if (keychainConfigured()) {
+        this.cookie = getSetting(SESSION_KEY) || (await relogin(null, this.opts));
+      } else {
+        this.cookie = envCookie();
+        if (!this.cookie) {
+          throw new CoolAuthError("找不到課程網認證：把台大帳密存進鑰匙圈（見 README），或在 .env.local 設定 COOL_COOKIE");
+        }
+      }
+    }
+    return { Cookie: this.cookie };
+  }
+
+  /** Run `fn`; if COOL refuses the session and we can log in, log in again and run it once more. */
+  private async withRelogin<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!(e instanceof CoolAuthError) || this.relogged || !keychainConfigured()) throw e;
+      this.relogged = true;
+      this.cookie = await relogin(this.cookie, this.opts);
+      try {
+        return await fn();
+      } catch (again) {
+        if (again instanceof CoolAuthError) throw new CoolAuthError("重新登入後 COOL 仍然拒絕連線");
+        throw again;
+      }
+    }
+  }
+
+  open(url: string, timeoutMs = 30_000): Promise<Response> {
+    return this.withRelogin(() => this.openOnce(url, timeoutMs));
+  }
 
   /**
    * GET, following redirects by hand: file downloads redirect to object storage
-   * on another host, and the session cookie must not go along. A 401 or a bounce
+   * on another host, and the cookie must not go along. A 401 or a bounce
    * to the login page means the session has expired.
    */
-  async open(url: string, timeoutMs = 30_000): Promise<Response> {
+  private async openOnce(url: string, timeoutMs: number): Promise<Response> {
     let current = url;
     const origin = new URL(url).host;
     for (let hops = 0; hops < 10; hops++) {
       const sameHost = new URL(current).host === origin;
-      if (sameHost && new URL(current).pathname.startsWith("/login")) throw new CoolAuthError(EXPIRED);
+      if (sameHost && new URL(current).pathname.startsWith("/login")) throw new CoolAuthError(expiredMessage());
       let res: Response;
       try {
         res = await fetch(current, {
           method: "GET",
           redirect: "manual",
-          headers: { Accept: "application/json", ...(sameHost ? { Cookie: this.cookie } : {}) },
+          headers: { Accept: "application/json", ...(sameHost ? await this.auth() : {}) },
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (e) {
@@ -82,7 +195,7 @@ class CoolClient {
         current = new URL(res.headers.get("location")!, current).toString();
         continue;
       }
-      if (res.status === 401) throw new CoolAuthError(EXPIRED);
+      if (res.status === 401) throw new CoolAuthError(expiredMessage());
       if (res.status === 403) {
         throw new CoolError(`沒有權限讀取 ${new URL(current).pathname}（學生帳號可能看不到這個資源）`);
       }
@@ -93,19 +206,23 @@ class CoolClient {
   }
 
   /** GET a JSON endpoint, following Canvas `Link: rel="next"` pagination for lists. */
-  async get<T = unknown>(apiPath: string, params: Record<string, string | number> = {}): Promise<T> {
+  get<T = unknown>(apiPath: string, params: Record<string, string | number> = {}): Promise<T> {
+    return this.withRelogin(() => this.getOnce<T>(apiPath, params));
+  }
+
+  private async getOnce<T>(apiPath: string, params: Record<string, string | number>): Promise<T> {
     const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
     let url: string | null = `${baseUrl()}${apiPath}${qs ? `?${qs}` : ""}`;
     const pages: unknown[] = [];
     while (url) {
-      const res = await this.open(url);
+      const res = await this.openOnce(url, 30_000);
       const text = (await res.text()).replace(/^while\(1\);/, "");
       let data: unknown;
       try {
         data = JSON.parse(text);
       } catch {
         // An expired session sometimes answers 200 with the HTML login page.
-        throw new CoolAuthError(EXPIRED);
+        throw new CoolAuthError(expiredMessage());
       }
       if (!Array.isArray(data)) return data as T;
       pages.push(...data);
@@ -146,8 +263,8 @@ export function fileKey(name: string): string {
 
 export type CoolCourse = { id: number; name: string; course_code: string };
 
-export async function listCoolCourses(): Promise<CoolCourse[]> {
-  const courses = await new CoolClient().get<CoolCourse[]>("/api/v1/courses", {
+export async function listCoolCourses(client = new CoolClient()): Promise<CoolCourse[]> {
+  const courses = await client.get<CoolCourse[]>("/api/v1/courses", {
     enrollment_state: "active",
     per_page: 100,
   });
@@ -278,6 +395,8 @@ export type CoolRun = {
   error: string | null;
   /** Started by the hourly auto-sync rather than the button. */
   auto?: boolean;
+  /** COOL refused the cookie and logging in again failed: needs the user, not a retry. */
+  authFailed?: boolean;
 };
 
 /** Files in the course's modules, in module order (same as cool.py's module_files). */
@@ -487,14 +606,14 @@ export async function syncCool({ auto = false }: { auto?: boolean } = {}): Promi
     fresh: { assignments: [], announcements: [] },
   };
   try {
-    const client = new CoolClient();
-    log("開始同步：讀取 COOL 課程清單");
+    const client = new CoolClient({ manual: !auto, log });
+    log(`開始同步（認證：${authLabel()}）：讀取 COOL 課程清單`);
 
     const unmatched = db
       .prepare("SELECT * FROM courses WHERE archived = 0 AND cool_course_id IS NULL")
       .all() as Course[];
     if (unmatched.length) {
-      const cool = await listCoolCourses();
+      const cool = await listCoolCourses(client);
       for (const course of unmatched) {
         const hit = matchCourse(course, cool);
         if (!hit) {
@@ -542,6 +661,7 @@ export async function syncCool({ auto = false }: { auto?: boolean } = {}): Promi
     run.status = courses.length && failed === courses.length ? "failed" : "done";
   } catch (e) {
     run.error = (e as Error).message;
+    run.authFailed = e instanceof CoolAuthError;
     run.status = "failed";
     log(`✗ 同步失敗：${run.error}`);
   } finally {
@@ -590,7 +710,7 @@ export async function downloadCoolFile(fileId: number): Promise<string> {
   if (!row) throw new CoolError("這個檔案不在同步清單裡");
   const course = db.prepare("SELECT * FROM courses WHERE id = ?").get(row.course_id) as Course;
 
-  const client = new CoolClient();
+  const client = new CoolClient({ manual: true });
   const meta = await client.get<{ url?: string; display_name?: string }>(`/api/v1/files/${fileId}`);
   if (!meta.url) throw new CoolError("COOL 沒有提供下載連結（檔案可能被鎖住）");
   const name = path.basename(meta.display_name || row.title); // no path components from the server
@@ -652,7 +772,7 @@ export async function openCoolFile(
     }
   }
 
-  const client = new CoolClient();
+  const client = new CoolClient({ manual: true });
   const meta = await client.get<{ url?: string; display_name?: string; size?: number }>(`/api/v1/files/${fileId}`);
   if (!meta.url) throw new CoolError("COOL 沒有提供下載連結（檔案可能被鎖住）");
   const res = await client.open(meta.url, 120_000);

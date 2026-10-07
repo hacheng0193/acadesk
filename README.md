@@ -58,8 +58,8 @@ A today's-todo list and a research timer live in the sidebar on every page.
   ones written in Obsidian. Older databases: run
   `node --experimental-strip-types scripts/migrate-logs-to-vault.mts` (dry run),
   then add `--apply`.
-- **NTU COOL sync is one button.** Read-only, using your browser's session
-  cookie (see *Optional setup*). It pulls assignments into the schedule (tagged
+- **NTU COOL sync is one button.** Read-only; it logs in with your NTU account
+  from the macOS keychain (see *Optional setup*). It pulls assignments into the schedule (tagged
   「COOL 作業」, marked done once submitted, due dates kept current; a manual
   item with the same title is adopted rather than duplicated), new
   announcements, and the files in each course's modules. You pick which files
@@ -68,7 +68,7 @@ A today's-todo list and a research timer live in the sidebar on every page.
   pages with the last sync time under it. While the server runs it also syncs
   on its own between 08:00 and 18:00 once the last sync is over an hour old,
   and posts a macOS notification for new assignments or announcements (or,
-  once, for an expired cookie). Turn it off with `COOL_AUTO_SYNC=0`.
+  once, when it can't log in). Turn it off with `COOL_AUTO_SYNC=0`.
 - **PDFs open in a built-in viewer** (PDF.js), so they display even in browsers
   without a PDF plugin. Downloaded files can also be opened in Preview or shown
   in Finder.
@@ -134,22 +134,36 @@ never part of the export. Note that **git history cannot be
 un-pushed** — turning a toggle off later only keeps the item out of *future*
 commits. Paper PDFs are never uploaded.
 
-**NTU COOL** — log in to `cool.ntu.edu.tw` in your browser, open DevTools →
-Network, click any request to `cool.ntu.edu.tw`, and copy the whole `Cookie`
-request header into `.env.local`:
+**NTU COOL** (macOS) — store your NTU account in the login keychain; the
+server reads it and logs in to COOL the way the browser does (COOL → NTU SSO →
+back to COOL). In a terminal, with your student ID:
 
 ```bash
-COOL_COOKIE=_normandy_session=...; log_session_id=...
+security add-generic-password -s alex-system-ntu -a <student ID> -w
 ```
 
+It prompts for the password, so it never lands in your shell history. The
+service name can be changed with `NTU_KEYCHAIN_SERVICE`.
+
+The login cookie is kept in the database and reused. When COOL refuses it
+(typically after about a day), the server logs in again on its own, retries
+the request, posts a 「NTU COOL 已自動重新登入」 notification and appends a line
+to `data/cool-auth.log`. If the NTU SSO rejects the password, automatic logins
+stop (so hourly retries can't lock the account) until you press
+「同步 NTU COOL」 yourself. To revoke access, delete the keychain item.
+
+Without the keychain item, the browser's session cookie works too, but expires
+with the session: open DevTools → Network, click any request to
+`cool.ntu.edu.tw`, and copy the whole `Cookie` request header into
+`COOL_COOKIE=...` in `.env.local`. The keychain wins when both are set.
+
 Restart the server, then press 「同步 NTU COOL」 on the Overview or Courses page;
-from then on it also syncs hourly on its own during the day. Courses
+「看紀錄」 in the sync dialog starts with `開始同步（認證：鑰匙圈帳密自動登入）`.
+From then on it also syncs hourly on its own during the day. Courses
 are matched to COOL by course code, then by name; fix any match in the course's
 edit form (or set it to 不同步). Downloading lecture files needs the Obsidian
-vault configured. The session expires when you log out of COOL or after a while
-— the sync then says so (the auto-sync posts a notification once), and you
-paste a fresh cookie. Only `GET` requests are
-ever sent, and the cookie never leaves this machine except to COOL itself.
+vault configured. Only `GET` requests are ever sent to COOL, and the password
+and cookie never leave this machine except to the NTU SSO and COOL themselves.
 COOL runs on Canvas LMS, so `COOL_BASE_URL` can point at another school's
 Canvas instance; only NTU COOL has been tried.
 
@@ -162,7 +176,7 @@ Canvas instance; only NTU COOL has been tried.
 | `backups/snapshots/` | Restore-grade `.db` copies, newest per day, 14 days. Gitignored. |
 | `backups/export/` | JSON export for the optional GitHub push. Gitignored. |
 | your Obsidian vault | Notes, and lecture files downloaded from COOL (`<course>/Lectures/`). Untouched by this repo's backups — use your own. |
-| `.env.local` | Optional settings, including your COOL cookie. Gitignored. |
+| `.env.local` | Optional settings, including the COOL cookie fallback. Gitignored. |
 
 A fresh clone contains **none** of the above.
 
@@ -170,11 +184,11 @@ A fresh clone contains **none** of the above.
 
 - **Single user, no authentication.** It assumes it's your machine, so the
   server listens on `127.0.0.1` only: phones and other computers can't reach it.
-  Don't put it behind a proxy or tunnel — with a COOL cookie configured, anyone
+  Don't put it behind a proxy or tunnel — with COOL login configured, anyone
   who can reach it can read your COOL courses.
 - **Outbound requests** go to two places only: the paper metadata lookup
   (Crossref / arXiv), which sends nothing but the identifier you typed, and
-  NTU COOL, only if you set `COOL_COOKIE` (then also automatically, hourly
+  NTU COOL and the NTU SSO, only once the keychain item or `COOL_COOKIE` is set (then also automatically, hourly
   between 08:00 and 18:00, unless `COOL_AUTO_SYNC=0`). BibTeX is parsed locally.
 - **Some buttons are macOS-only**: 「Finder」, 「預覽程式」 and opening local
   `file://` links use the `open` command. The rest works anywhere.

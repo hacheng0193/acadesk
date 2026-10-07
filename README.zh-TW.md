@@ -68,13 +68,13 @@ npm run autostart:install
 
 **研究日誌就是筆記。** 「＋ 新增紀錄」會在 vault 建立 `<主題跟隨的資料夾>/<日期> <標題>.md`，frontmatter 帶 `type`（`experiment`／`meeting`／`idea`）與 `date`，建檔前表單上就看得到完整路徑，建完直接開啟繼續寫。主題頁的日誌只列標題、日期與前兩行摘要，點進去才看全文。規則很單純：**連到這個主題、且 frontmatter 的 `type` 是上述三種之一的筆記**就會出現在日誌裡，所以在 Obsidian 裡照這個格式寫的筆記也算。主題還沒跟隨任何資料夾時，會自動跟隨以主題命名的資料夾。舊版存在資料庫裡的紀錄，用 `node --experimental-strip-types scripts/migrate-logs-to-vault.mts` 預演、加 `--apply` 搬進 vault（會先留一份資料庫快照）。
 
-**NTU COOL 一鍵同步。** 總覽與課程頁的「同步 NTU COOL」用你瀏覽器的登入 cookie 讀取 COOL（只讀，設定方式見下面「選用設定」），會：
+**NTU COOL 一鍵同步。** 總覽與課程頁的「同步 NTU COOL」用鑰匙圈裡的台大帳密登入 COOL（只讀，設定方式見下面「選用設定」），會：
 
 - 把作業放進行程，標上「COOL 作業」；COOL 顯示已繳交就自動打勾，截止時間改了會跟著更新；同課程、同標題的手動事項會被接管，不會重複建立
 - 列出新公告
 - 列出各課程模組裡的檔案，讓你勾選要下載到 vault 的 `<課名>/Lectures/`，其餘可以先從 COOL 直接預覽，或略過
 
-按鈕底下會標上次同步的時間。服務開著的時候，08:00–18:00 之間只要距離上次同步超過一小時就會自動同步一次，有新作業或新公告會跳 macOS 通知（第一次可能要到「系統設定 → 通知」允許「工序指令編寫程式」／Script Editor）；cookie 過期也會通知一次。不想要的話在 `.env.local` 設 `COOL_AUTO_SYNC=0`。
+按鈕底下會標上次同步的時間。服務開著的時候，08:00–18:00 之間只要距離上次同步超過一小時就會自動同步一次，有新作業或新公告會跳 macOS 通知（第一次可能要到「系統設定 → 通知」允許「工序指令編寫程式」／Script Editor）；自動登入失敗也會通知一次。不想要的話在 `.env.local` 設 `COOL_AUTO_SYNC=0`。
 
 研究主題頁有「講義」按鈕，直接跳到該課的講義。
 
@@ -92,19 +92,22 @@ npm run autostart:install
 
 ### NTU COOL
 
-1. 在瀏覽器登入 `cool.ntu.edu.tw`
-2. 開 DevTools（⌥⌘I）→ Network，重新整理，點任一個送到 `cool.ntu.edu.tw` 的請求
-3. 在 Request Headers 找到 `Cookie`，把**整串值**複製到 `.env.local`：
+系統用你的台大帳密自動登入 COOL（走跟瀏覽器一樣的流程：COOL → 台大 SSO → 回到 COOL），帳密存在 macOS 鑰匙圈。
+
+1. 在終端機執行（換成你的學號），它會請你輸入密碼，密碼不會留在指令紀錄裡：
 
    ```bash
-   COOL_COOKIE=_normandy_session=...; log_session_id=...
+   security add-generic-password -s alex-system-ntu -a 你的學號 -w
    ```
 
-4. 重啟服務，到總覽或課程頁按「同步 NTU COOL」；之後白天也會每小時自動同步
+2. 重啟服務，到總覽或課程頁按「同步 NTU COOL」；之後白天也會每小時自動同步
+3. 在同步視窗按「看紀錄」，第一行應該是「開始同步（認證：鑰匙圈帳密自動登入）」
 
-在 Console 打 `document.cookie` 拿不到——`_normandy_session` 是 HttpOnly，只能從 Network 或 Application → Cookies 複製。
+登入後拿到的 cookie 存在資料庫裡重複使用。COOL 拒絕它的時候（通常大約一天），系統會自己重新登入、把請求重送一次，跳出「NTU COOL 已自動重新登入」通知，並在 `data/cool-auth.log` 記一行。如果台大 SSO 說帳密錯誤，自動登入會暫停（避免每小時試一次把帳號鎖住），要等你自己按一次「同步 NTU COOL」才會再試。不想再讓系統登入，刪掉鑰匙圈裡的 `alex-system-ntu` 就好；名稱可以用 `NTU_KEYCHAIN_SERVICE` 改。
 
-課程會先用課號、再用課名自動對到 COOL 課程；對錯的到課程的編輯表單改，或選「不同步」。下載講義需要先設定 Obsidian vault。cookie 在你登出 COOL 或閒置一段時間後失效，同步時會提示，重新複製一份即可。程式只送 `GET` 請求，cookie 除了送給 COOL 本身之外不會離開這台電腦。
+**沒有鑰匙圈項目的話**，可以改用瀏覽器的登入 cookie，但它在你登出 COOL 或閒置一段時間後就會失效：開 DevTools（⌥⌘I）→ Network，重新整理，點任一個送到 `cool.ntu.edu.tw` 的請求，在 Request Headers 找到 `Cookie`，把**整串值**設成 `.env.local` 的 `COOL_COOKIE=...`。在 Console 打 `document.cookie` 拿不到——`_normandy_session` 是 HttpOnly。兩個都有的話用鑰匙圈。
+
+課程會先用課號、再用課名自動對到 COOL 課程；對錯的到課程的編輯表單改，或選「不同步」。下載講義需要先設定 Obsidian vault。程式只對 COOL 送 `GET` 請求，帳密和 cookie 除了送給台大 SSO 和 COOL 本身之外不會離開這台電腦。
 
 COOL 是 Canvas LMS，所以 `COOL_BASE_URL` 理論上可以指向別校的 Canvas，但只在 NTU COOL 上試過。
 
@@ -149,7 +152,7 @@ git init && git remote add origin <你的 private repo>
 | `backups/snapshots/` | 還原等級的 `.db`，每天最新一份、14 天。已 gitignore |
 | `backups/export/` | 給 GitHub 備份用的 JSON。已 gitignore |
 | 你的 Obsidian vault | 筆記本體，以及從 COOL 下載的講義（`<課名>/Lectures/`）。這個 repo 的備份不碰它，用你自己的方式備份 |
-| `.env.local` | 選用設定，包含 COOL cookie。已 gitignore |
+| `.env.local` | 選用設定，包含備用的 COOL cookie。已 gitignore |
 
 **全新 clone 下來不含以上任何一項。**
 
@@ -187,7 +190,7 @@ tail -f ~/Library/Logs/acadesk-backup.log    # 備份
 
 **搜尋找不到東西** — 設定頁有「重建搜尋索引」。
 
-**COOL 同步說 cookie 被拒絕（或跳出「NTU COOL 自動同步失敗」通知）** — 登入 session 過期了。到瀏覽器重新登入 COOL，照上面的步驟重新複製 Cookie 到 `.env.local`，再重啟服務。
+**跳出「NTU COOL 自動同步失敗」通知，或同步說自動登入失敗** — 看 `data/cool-auth.log` 最後幾行。「學校登入系統拒絕了鑰匙圈裡的帳號密碼」：你改過台大密碼，用 `security add-generic-password -U -s alex-system-ntu -a 你的學號 -w` 更新鑰匙圈，再手動按一次「同步 NTU COOL」。「找不到學校的登入表單」或「沒有回到 COOL」：學校登入頁改版或多了驗證步驟，自動登入要跟著改。用 `COOL_COOKIE` 的話，是登入 session 過期了，重新複製一份並重啟服務。
 
 **還原資料** — 步驟在 [scripts/launchd.md](scripts/launchd.md)，重點是**先停服務再覆蓋檔案**。從 GitHub 還原得到的是不含被排除項目的部分資料，完整還原一定要用本機快照。
 
@@ -195,8 +198,8 @@ tail -f ~/Library/Logs/acadesk-backup.log    # 備份
 
 ## 已知限制
 
-- **單人使用、沒有登入機制。** 它預設這是你自己的電腦，所以服務只聽 `127.0.0.1`，手機或別台電腦連不到。不要用反向代理或通道把它開到網路上——設了 COOL cookie 之後，連得到的人就能讀你的 COOL 課程。
-- **對外連線只有兩處**：論文的 DOI／arXiv 查詢（Crossref／arXiv），送出的只有編號本身；以及 NTU COOL，只有設定 `COOL_COOKIE` 才會連（設了之後 08:00–18:00 每小時也會自動連，`COOL_AUTO_SYNC=0` 可關掉）。BibTeX 完全在本機解析。
+- **單人使用、沒有登入機制。** 它預設這是你自己的電腦，所以服務只聽 `127.0.0.1`，手機或別台電腦連不到。不要用反向代理或通道把它開到網路上——設定 COOL 登入之後，連得到的人就能讀你的 COOL 課程。
+- **對外連線只有兩處**：論文的 DOI／arXiv 查詢（Crossref／arXiv），送出的只有編號本身；以及 NTU COOL 和台大 SSO，只有存了鑰匙圈項目或設定 `COOL_COOKIE` 才會連（設了之後 08:00–18:00 每小時也會自動連，`COOL_AUTO_SYNC=0` 可關掉）。BibTeX 完全在本機解析。
 - **部分按鈕只在 macOS 有用**：「Finder」、「預覽程式」與開啟本機 `file://` 連結都靠 `open` 指令，其餘功能各平台都能用。
 - **課表匯入是針對臺大課程網**（`course.ntu.edu.tw`）的貼上格式寫的。別的學校對不上，手動輸入課程即可，其他功能不依賴它。
 - **介面是繁體中文**，程式碼與註解是英文。

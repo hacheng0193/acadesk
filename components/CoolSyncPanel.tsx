@@ -55,7 +55,7 @@ export function CoolSyncPanel({ initial }: { initial: CoolPanelState }) {
           <LastSynced run={state.lastRun} autoSync={state.autoSync} />
         ) : (
           <p className="text-right text-[11px] text-dim">
-            要同步 COOL：在 .env.local 設定 COOL_COOKIE（瀏覽器登入 COOL 後複製 Cookie），再重啟服務
+            要同步 COOL：把台大帳密存進鑰匙圈（security add-generic-password -s alex-system-ntu -a 學號 -w），見 README
           </p>
         )}
       </div>

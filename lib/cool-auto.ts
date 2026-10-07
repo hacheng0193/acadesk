@@ -1,7 +1,7 @@
-import { execFile } from "node:child_process";
 import { db } from "./db";
 import { toLocalIso } from "./dates";
 import { coolConfigured, lastRun, syncCool, type CoolRun } from "./cool";
+import { notify } from "./notify";
 
 /**
  * Hourly NTU COOL sync during the day, run inside the server process so it
@@ -57,9 +57,9 @@ async function tick() {
 
 function notifyAbout(run: CoolRun, prev: CoolRun | null) {
   if (run.error) {
-    // Only an expired cookie needs the user (a network blip after waking doesn't),
-    // and it fails every hour until replaced: say so once.
-    if (/cookie/i.test(run.error) && prev?.error !== run.error) notify("NTU COOL 自動同步失敗", run.error);
+    // Only a failed login or refused cookie needs the user (a network blip after
+    // waking doesn't), and it fails every hour until fixed: say so once.
+    if (run.authFailed && prev?.error !== run.error) notify("NTU COOL 自動同步失敗", run.error);
     return;
   }
   const fresh = run.summary?.fresh;
@@ -74,28 +74,6 @@ function notifyAbout(run: CoolRun, prev: CoolRun | null) {
   const lines = [...assignments.map((t) => `作業｜${t}`), ...announcements.map((t) => `公告｜${t}`)];
   const body = lines.length > 3 ? [...lines.slice(0, 3), `…還有 ${lines.length - 3} 項`].join("\n") : lines.join("\n");
   notify(`NTU COOL：${counts.join("、")}`, body);
-}
-
-/** Text goes in as argv, never spliced into the script, so titles can't break out of the string. */
-export function notify(title: string, body: string) {
-  if (process.platform !== "darwin") return;
-  execFile(
-    "osascript",
-    [
-      "-e",
-      "on run argv",
-      "-e",
-      'display notification (item 2 of argv) with title (item 1 of argv) sound name "default"',
-      "-e",
-      "end run",
-      title,
-      body,
-    ],
-    { timeout: 10_000 },
-    (err) => {
-      if (err) console.error("[cool-auto] notification failed:", err.message);
-    },
-  );
 }
 
 const g = globalThis as { __coolAutoSync?: boolean };

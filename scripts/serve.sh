@@ -16,6 +16,6 @@ if [ ! -f .next-prod/BUILD_ID ]; then
 fi
 
 echo "[acadesk] starting on http://localhost:$PORT"
-# Loopback only: the app has no login, and the COOL routes act with the session
-# cookie in .env.local - nothing on the local network should be able to reach them.
+# Loopback only: the app has no login, and the COOL routes act with your COOL
+# login - nothing on the local network should be able to reach them.
 exec node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$PORT"

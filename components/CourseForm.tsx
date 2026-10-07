@@ -129,7 +129,7 @@ function Inner({
         hint={
           coolCourses.length
             ? "同步時從這門 COOL 課程抓作業、公告與講義"
-            : "還沒連上 COOL（.env.local 設定 COOL_COOKIE），先選自動比對即可"
+            : "還沒連上 COOL（把台大帳密存進鑰匙圈，見 README），先選自動比對即可"
         }
       >
         <select name="cool_course_id" defaultValue={coolId === null ? "" : String(coolId)} className={inputClass}>
