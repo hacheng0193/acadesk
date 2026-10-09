@@ -20,7 +20,7 @@ function hrefFor(kind: SearchKind, refKey: string): string {
 }
 
 /** A short window of body text around the first match, for context in results. */
-function makeSnippet(body: string, query: string): string {
+export function makeSnippet(body: string, query: string): string {
   const flat = body.replace(/\s+/g, " ").trim();
   if (!flat) return "";
   const at = flat.toLowerCase().indexOf(query.toLowerCase());

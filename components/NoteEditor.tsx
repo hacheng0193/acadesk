@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { attachImage, deleteNote, saveNote } from "@/app/actions/notes";
 import { Button, cx, inputClass } from "./ui";
+import { VaultLinkPicker } from "./VaultLinkPicker";
 
 type Mode = "edit" | "split" | "preview";
 
@@ -42,6 +43,7 @@ export function NoteEditor({
   // Inline path box for local-file links (window.prompt is unavailable in some embedded browsers).
   const [browsing, setBrowsing] = useState(false);
   const [filePath, setFilePath] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
   const router = useRouter();
 
   const dirty = content !== saved;
@@ -296,7 +298,22 @@ export function NoteEditor({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setFilePath((v) => (v === null ? "" : null))}
+            onClick={() => {
+              setFilePath(null);
+              setLinking((v) => !v);
+            }}
+            title="搜尋 vault 裡的筆記或附件（檔名或內文），在游標處插入 Obsidian 連結；在「編輯」或「並排」模式下使用。"
+            disabled={mode === "preview"}
+          >
+            插入筆記
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setLinking(false);
+              setFilePath((v) => (v === null ? "" : null));
+            }}
             title="在游標處插入本地檔案連結（file://）；在「編輯」或「並排」模式下使用。輸入 [[ 可連結其他筆記。"
             disabled={mode === "preview"}
           >
@@ -336,6 +353,19 @@ export function NoteEditor({
           </Button>
         </div>
       </div>
+
+      {linking && mode !== "preview" ? (
+        <VaultLinkPicker
+          onInsert={(link) => {
+            setLinking(false);
+            insertAtCursor(link);
+          }}
+          onClose={() => {
+            setLinking(false);
+            areaRef.current?.focus();
+          }}
+        />
+      ) : null}
 
       {filePath !== null ? (
         <form

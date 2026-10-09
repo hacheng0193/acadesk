@@ -3,7 +3,15 @@ import { notFound } from "next/navigation";
 import { NoteEditor } from "@/components/NoteEditor";
 import { renderMarkdown } from "@/lib/markdown";
 import { extractTags } from "@/lib/tags";
-import { imageIndex, listNotes, obsidianUri, readNote, resolveVaultImage, VaultError } from "@/lib/vault";
+import {
+  attachmentIndex,
+  imageIndex,
+  noteIndex,
+  obsidianUri,
+  readNote,
+  resolveVaultImage,
+  VaultError,
+} from "@/lib/vault";
 
 export const dynamic = "force-dynamic";
 
@@ -50,12 +58,17 @@ export default async function NotePage({
 
   // Resolve [[wikilinks]] and embedded images against the vault, so they become
   // in-app links and pictures this page can actually load.
-  const index = new Map(listNotes().map((f) => [f.title.toLowerCase(), f.rel]));
+  const index = noteIndex();
+  const files = attachmentIndex();
   const images = imageIndex();
   const previewHtml = renderMarkdown(note.content, {
     stripFrontmatter: true,
     resolveWikilink: (name) => index.get(name.toLowerCase()) ?? null,
     resolveImage: (src) => resolveVaultImage(src, images),
+    resolveFile: (name) => {
+      const rel = files.get(name.toLowerCase());
+      return rel ? obsidianUri(rel) : null;
+    },
   });
 
   const folder = note.rel.includes("/") ? note.rel.slice(0, note.rel.lastIndexOf("/")) : "";

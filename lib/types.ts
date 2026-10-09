@@ -354,3 +354,14 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   note: "筆記",
   review: "文獻回顧",
 };
+
+/** A vault note or attachment the editor's "insert note" panel offers. */
+export type LookupHit = {
+  kind: "note" | "file";
+  rel: string;
+  title: string;
+  match: "name" | "content";
+  snippet?: string;
+  /** What goes into the note: an Obsidian wikilink, or an embed for images. */
+  link: string;
+};

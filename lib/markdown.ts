@@ -136,9 +136,14 @@ function rewriteImages(html: string, resolve?: (src: string) => string | null): 
 
 /**
  * Turn Obsidian `[[wikilinks]]` into in-app note links before Markdown parsing.
- * `resolve` maps a note name to a vault-relative path, if we know one.
+ * `resolve` maps a note name to a vault-relative path, if we know one;
+ * `resolveFile` maps any other vault file (a PDF, say) to a URL that opens it.
  */
-function expandWikilinks(md: string, resolve?: (name: string) => string | null): string {
+function expandWikilinks(
+  md: string,
+  resolve?: (name: string) => string | null,
+  resolveFile?: (name: string) => string | null,
+): string {
   return md.replace(/!?\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (whole, rawName, alias) => {
     const name = String(rawName).trim();
     if (whole.startsWith("!")) {
@@ -152,7 +157,11 @@ function expandWikilinks(md: string, resolve?: (name: string) => string | null):
     }
     const label = escapeHtml(String(alias ?? name).trim());
     const rel = resolve?.(name);
-    if (!rel) return `<span class="text-dim underline decoration-dotted">${label}</span>`;
+    if (!rel) {
+      const href = resolveFile?.(name);
+      if (href) return `<a class="local-file" href="${escapeHtml(href)}" title="${escapeHtml(name)}">${label}</a>`;
+      return `<span class="text-dim underline decoration-dotted">${label}</span>`;
+    }
     return `<a href="/notes/${rel.split("/").map(encodeURIComponent).join("/")}">${label}</a>`;
   });
 }
@@ -171,10 +180,12 @@ export function renderMarkdown(
     resolveWikilink?: (name: string) => string | null;
     /** Maps an image's src or embed name to a vault-relative path. */
     resolveImage?: (src: string) => string | null;
+    /** Maps a non-note wikilink target (`[[slides.pdf]]`) to a URL that opens it. */
+    resolveFile?: (name: string) => string | null;
     stripFrontmatter?: boolean;
   } = {},
 ): string {
   const source = opts.stripFrontmatter ? splitFrontmatter(md).body : md;
-  const html = marked.parse(expandWikilinks(source, opts.resolveWikilink), { async: false });
+  const html = marked.parse(expandWikilinks(source, opts.resolveWikilink, opts.resolveFile), { async: false });
   return markLocalFiles(rewriteImages(scrub(html), opts.resolveImage));
 }

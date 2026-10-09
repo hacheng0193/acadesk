@@ -164,6 +164,41 @@ export function listNotes(): VaultFile[] {
   return out;
 }
 
+/**
+ * Note names a `[[wikilink]]` can use, lowercased: the bare title, and the
+ * path without `.md` for when two notes share a title.
+ */
+export function noteIndex(notes = listNotes()): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const f of notes) {
+    index.set(f.rel.replace(/\.md$/i, "").toLowerCase(), f.rel);
+    const title = f.title.toLowerCase();
+    if (!index.has(title)) index.set(title, f.rel);
+  }
+  return index;
+}
+
+/** Every file in the vault that is not a note: PDFs, images, slides and so on. */
+export function listAttachments(): { rel: string; name: string }[] {
+  const root = vaultRoot();
+  if (!root) return [];
+  return walkVault(root, (name) => !name.toLowerCase().endsWith(".md")).map((rel) => ({
+    rel,
+    name: path.basename(rel),
+  }));
+}
+
+/** Attachments by file name and by path, both lowercased, the way imageIndex does it. */
+export function attachmentIndex(): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const { rel, name } of listAttachments()) {
+    index.set(rel.toLowerCase(), rel);
+    const base = name.toLowerCase();
+    if (!index.has(base)) index.set(base, rel);
+  }
+  return index;
+}
+
 export function readNote(relPath: string): { rel: string; content: string; mtime: number } {
   const { abs, rel } = resolveInVault(relPath);
   const stat = fs.statSync(abs);
