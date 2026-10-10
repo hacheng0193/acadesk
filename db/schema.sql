@@ -267,6 +267,33 @@ CREATE TABLE IF NOT EXISTS review_papers (
 );
 CREATE INDEX IF NOT EXISTS idx_review_papers_paper ON review_papers(paper_id);
 
+-- Highlights made in the paper reader. Rects are fractions of the page (0-1),
+-- so they land in the same place at any zoom.
+CREATE TABLE IF NOT EXISTS paper_highlights (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id   INTEGER NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+  page       INTEGER NOT NULL,
+  rects_json TEXT NOT NULL DEFAULT '[]',
+  text       TEXT NOT NULL DEFAULT '',
+  comment    TEXT NOT NULL DEFAULT '',
+  color      TEXT NOT NULL DEFAULT 'yellow',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_paper_highlights_paper ON paper_highlights(paper_id, page);
+
+-- Conversations about a paper with a local coding agent (Claude Code or Codex).
+-- session_id is the CLI's own, used to resume the conversation.
+CREATE TABLE IF NOT EXISTS paper_chats (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id      INTEGER NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+  provider      TEXT NOT NULL CHECK (provider IN ('claude','codex')),
+  session_id    TEXT,
+  messages_json TEXT NOT NULL DEFAULT '[]',
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_paper_chats_paper ON paper_chats(paper_id);
+
 CREATE TRIGGER IF NOT EXISTS search_reviews_ai AFTER INSERT ON reviews BEGIN
   INSERT INTO search_index (kind, ref_id, ref_key, title, body)
   VALUES ('review', new.id, new.id, new.title, new.question_md || ' ' || new.synthesis_md);

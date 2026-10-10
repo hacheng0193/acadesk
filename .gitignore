@@ -12,6 +12,7 @@ data/*.db
 data/*.db-*
 data/papers/*
 !data/papers/.gitkeep
+data/paper-ai/
 backups/
 
 # local config & noise

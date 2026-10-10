@@ -11,7 +11,7 @@ function hrefFor(kind: SearchKind, refKey: string): string {
     case "project":
       return `/research/${refKey}`;
     case "paper":
-      return "/papers";
+      return `/papers/${refKey}`;
     case "review":
       return `/reviews/${refKey}`;
     case "note":

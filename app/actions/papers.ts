@@ -1,10 +1,13 @@
 "use server";
 
 import { execFile as execFileCb } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
-import { removePdf, resolveInLibrary, storePdf } from "@/lib/papers-library";
+import { db, setSetting } from "@/lib/db";
+import { aiWorkDir } from "@/lib/paper-ai";
+import { removePdf, resolveInLibrary } from "@/lib/papers-library";
 import { int, oneOf, str } from "./shared";
 
 const execFile = promisify(execFileCb);
@@ -43,11 +46,11 @@ export async function savePaper(fd: FormData) {
     year: int(fd, "year"),
     doi: str(fd, "doi"),
     url: str(fd, "url"),
-    file_path: str(fd, "file_path"),
     status: oneOf(fd, "status", ["to_read", "reading", "read"] as const, "to_read"),
     rating: int(fd, "rating"),
-    notes_md: str(fd, "notes_md"),
   };
+  // file_path is owned by /api/papers/[id]/file and notes by the vault note;
+  // the form carries neither, so writing them here would wipe them on save.
   const projectIds = fd.getAll("project_ids").map(Number).filter(Boolean);
 
   db.transaction(() => {
@@ -55,15 +58,15 @@ export async function savePaper(fd: FormData) {
     if (paperId) {
       db.prepare(
         `UPDATE papers SET title=@title, authors=@authors, venue=@venue, year=@year, doi=@doi,
-         url=@url, file_path=@file_path, status=@status, rating=@rating, notes_md=@notes_md
+         url=@url, status=@status, rating=@rating
          WHERE id=@id`,
       ).run({ ...f, id: paperId });
     } else {
       paperId = Number(
         db
           .prepare(
-            `INSERT INTO papers (title, authors, venue, year, doi, url, file_path, status, rating, notes_md)
-             VALUES (@title, @authors, @venue, @year, @doi, @url, @file_path, @status, @rating, @notes_md)`,
+            `INSERT INTO papers (title, authors, venue, year, doi, url, status, rating)
+             VALUES (@title, @authors, @venue, @year, @doi, @url, @status, @rating)`,
           )
           .run(f).lastInsertRowid,
       );
@@ -74,56 +77,37 @@ export async function savePaper(fd: FormData) {
   refresh();
 }
 
+/** A bare paper for a dropped PDF, titled after the file; metadata comes later. */
+export async function createPaperFromFile(fileName: string): Promise<number> {
+  const title = fileName.replace(/\.pdf$/i, "").replace(/[_]+/g, " ").trim() || "未命名論文";
+  const id = Number(
+    db.prepare("INSERT INTO papers (title, status) VALUES (?, 'reading')").run(title).lastInsertRowid,
+  );
+  refresh();
+  return id;
+}
+
 export async function setPaperStatus(id: number, status: "to_read" | "reading" | "read") {
   db.prepare("UPDATE papers SET status = ? WHERE id = ?").run(status, id);
   refresh();
 }
 
 export async function deletePaper(id: number) {
+  // The library copy and extracted text go with it; the vault note is the
+  // user's writing and stays.
+  const row = db.prepare("SELECT file_path FROM papers WHERE id = ?").get(id) as
+    | { file_path: string }
+    | undefined;
+  if (row?.file_path) removePdf(row.file_path);
+  fs.rmSync(path.join(aiWorkDir(), `paper-${id}.txt`), { force: true });
   db.prepare("DELETE FROM papers WHERE id = ?").run(id);
   refresh();
 }
 
 /* ---------- local PDF attachments ---------- */
+// Attaching and removing go through /api/papers/[id]/file: uploads are too
+// big for a server action.
 
-/** Copy an uploaded PDF into the library and point the paper at it. */
-export async function attachPdf(
-  paperId: number,
-  form: FormData,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const file = form.get("file");
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "沒有選擇檔案" };
-  if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    return { ok: false, error: "只接受 PDF 檔案" };
-  }
-  if (file.size > 100 * 1024 * 1024) return { ok: false, error: "檔案超過 100 MB" };
-
-  const row = db.prepare("SELECT title, file_path FROM papers WHERE id = ?").get(paperId) as
-    | { title: string; file_path: string }
-    | undefined;
-  if (!row) return { ok: false, error: "找不到這篇論文" };
-
-  try {
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const stored = storePdf(paperId, row.title, bytes, row.file_path);
-    db.prepare("UPDATE papers SET file_path = ? WHERE id = ?").run(stored, paperId);
-    refresh();
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "存檔失敗" };
-  }
-}
-
-export async function detachPdf(paperId: number) {
-  const row = db.prepare("SELECT file_path FROM papers WHERE id = ?").get(paperId) as
-    | { file_path: string }
-    | undefined;
-  if (row?.file_path) removePdf(row.file_path);
-  db.prepare("UPDATE papers SET file_path = '' WHERE id = ?").run(paperId);
-  refresh();
-}
-
-/** Reveal the PDF in Finder - handy when you want the original file itself. */
 /** Open the PDF in the Mac's default app (Preview, usually) on the machine the server runs on. */
 export async function openPdfInApp(paperId: number): Promise<{ ok: boolean; error?: string }> {
   const row = db.prepare("SELECT file_path FROM papers WHERE id = ?").get(paperId) as
@@ -138,6 +122,7 @@ export async function openPdfInApp(paperId: number): Promise<{ ok: boolean; erro
   }
 }
 
+/** Reveal the PDF in Finder - handy when you want the original file itself. */
 export async function revealPdf(paperId: number): Promise<{ ok: boolean; error?: string }> {
   const row = db.prepare("SELECT file_path FROM papers WHERE id = ?").get(paperId) as
     | { file_path: string }
@@ -150,4 +135,9 @@ export async function revealPdf(paperId: number): Promise<{ ok: boolean; error?:
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "無法開啟 Finder" };
   }
+}
+
+/** Model override for "ask about this paper"; '' means the CLI's default. */
+export async function setAgentModel(provider: "claude" | "codex", model: string) {
+  setSetting(`paper_ai_${provider}_model`, model.trim());
 }

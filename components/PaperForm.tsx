@@ -153,14 +153,6 @@ function Inner({
               sizeBytes={fileSize ?? null}
             />
           </Field>
-          <Field label="筆記（Markdown）">
-            <textarea
-              name="notes_md"
-              rows={8}
-              defaultValue={paper?.notes_md}
-              className={cx(inputClass, "font-mono text-xs")}
-            />
-          </Field>
           <ModalActions
             close={close}
             extra={

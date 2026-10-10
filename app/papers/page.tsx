@@ -1,3 +1,4 @@
+import { PaperDropZone } from "@/components/PaperDropZone";
 import { PaperForm } from "@/components/PaperForm";
 import { PaperTable } from "@/components/PaperTable";
 import { Empty, PageHeader, buttonClass } from "@/components/ui";
@@ -18,10 +19,10 @@ export default function PapersPage() {
   const toRead = papers.filter((p) => p.status === "to_read").length;
 
   return (
-    <>
+    <PaperDropZone>
       <PageHeader
         title="文獻"
-        subtitle={`${papers.length} 篇　·　${reading} 篇閱讀中　·　${toRead} 篇待讀`}
+        subtitle={`${papers.length} 篇　·　${reading} 篇閱讀中　·　${toRead} 篇待讀　·　把 PDF 拖進來即可新增`}
         actions={
           <PaperForm
             projects={projects}
@@ -32,8 +33,8 @@ export default function PapersPage() {
       {papers.length ? (
         <PaperTable papers={papers} projects={projects} sizes={sizes} />
       ) : (
-        <Empty>還沒有論文。按 ⌘K 快速新增，或從右上角填完整資訊。</Empty>
+        <Empty>還沒有論文。把 PDF 拖進這頁、按 ⌘K 快速新增，或從右上角填完整資訊。</Empty>
       )}
-    </>
+    </PaperDropZone>
   );
 }

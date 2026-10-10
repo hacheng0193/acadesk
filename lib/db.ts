@@ -28,6 +28,7 @@ const ADDED_COLUMNS: { table: string; column: string; definition: string }[] = [
   { table: "projects", column: "kind", definition: "TEXT NOT NULL DEFAULT 'research'" },
   { table: "projects", column: "links_json", definition: "TEXT NOT NULL DEFAULT '[]'" },
   { table: "courses", column: "cool_course_id", definition: "INTEGER" },
+  { table: "papers", column: "note_path", definition: "TEXT NOT NULL DEFAULT ''" },
   { table: "assignments", column: "cool_id", definition: "TEXT" },
   { table: "cool_files", column: "position", definition: "INTEGER NOT NULL DEFAULT 0" },
 ];

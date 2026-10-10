@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { withNoteBodies } from "../paper-notes";
 import type { Review, ReviewListRow, ReviewPaperRow } from "../types";
 
 const LIST = `
@@ -25,11 +26,12 @@ export function getReview(id: number): Review | undefined {
 }
 
 export function reviewPapers(reviewId: number): ReviewPaperRow[] {
-  return db
+  const rows = db
     .prepare(
       `SELECT p.*, rp.sort_order, rp.cells_json
        FROM review_papers rp JOIN papers p ON p.id = rp.paper_id
        WHERE rp.review_id = ? ORDER BY rp.sort_order, p.year, p.title`,
     )
     .all(reviewId) as ReviewPaperRow[];
+  return withNoteBodies(rows);
 }

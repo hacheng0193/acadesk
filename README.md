@@ -21,7 +21,7 @@ database is a single SQLite file you own.
 | **Lectures** | Lecture files from NTU COOL per course and module — preview, download into your vault, or skip |
 | **Research** | Topics → milestone timeline, research log, linked papers and notes, cumulative hours; categorised as research / course / side project and filterable |
 | **Notes** | Reads and writes your Obsidian vault directly — not a second copy; sidebar is a collapsible folder tree |
-| **Papers** | Paper list, tags, linked research topics, local PDFs |
+| **Papers** | Paper list, tags, linked research topics, local PDFs; a reader with the paper on the left and notes / highlights / Ask AI on the right |
 | **Reviews** | Literature reviews: papers side by side in a comparison matrix, plus the synthesis you write from it, exportable |
 | **Time** | Timer sessions and lab check-in/out |
 | **Stats** | Weekly/monthly hours, split by topic, daily heatmap, attendance streak |
@@ -38,7 +38,15 @@ A today's-todo list and a research timer live in the sidebar on every page.
   away. You get a report to confirm or correct when you come back.
 - **Papers autofill from a DOI.** Paste a DOI, an arXiv id, or a whole BibTeX
   entry. PDFs you drag in are copied into a local library, so clearing your
-  Downloads folder doesn't break the link.
+  Downloads folder doesn't break the link. Drop a PDF anywhere on the papers
+  page to create a paper from it and open the reader.
+- **The paper reader works like alphaXiv.** The PDF on the left; on the right,
+  **Notes** (one vault note per paper, `Papers/<title>.md`, autosaved),
+  **Highlights** (select text, pick a colour, add a comment, insert it into the
+  notes as `> quote — p.N`) and **Ask AI**, which runs your local Claude Code or
+  Codex CLI on your own subscription — no API key. The agent gets the paper as
+  plain text with read-only tools; `p.N` in answers jumps to the page, and
+  follow-ups continue the same session.
 - **The calendar subscribes to macOS Calendar.** One-way: changes here flow out,
   changes in Calendar don't come back.
 - **Notes are just files in your vault.** Edit in the browser, see it in Obsidian
@@ -173,6 +181,7 @@ Canvas instance; only NTU COOL has been tried.
 |---|---|
 | `data/acadesk.db` | Everything you enter. Gitignored. |
 | `data/papers/` | PDFs you attached. Gitignored. |
+| `data/paper-ai/` | Plain-text copies of papers for Ask AI. Gitignored; rebuilt when deleted. |
 | `backups/snapshots/` | Restore-grade `.db` copies, newest per day, 14 days. Gitignored. |
 | `backups/export/` | JSON export for the optional GitHub push. Gitignored. |
 | your Obsidian vault | Notes, and lecture files downloaded from COOL (`<course>/Lectures/`). Untouched by this repo's backups — use your own. |
@@ -190,6 +199,8 @@ A fresh clone contains **none** of the above.
   (Crossref / arXiv), which sends nothing but the identifier you typed, and
   NTU COOL and the NTU SSO, only once the keychain item or `COOL_COOKIE` is set (then also automatically, hourly
   between 08:00 and 18:00, unless `COOL_AUTO_SYNC=0`). BibTeX is parsed locally.
+  Ask AI runs your local `claude` / `codex` CLI, which sends the paper's text to
+  Anthropic / OpenAI exactly as those CLIs normally do.
 - **Some buttons are macOS-only**: 「Finder」, 「預覽程式」 and opening local
   `file://` links use the `open` command. The rest works anywhere.
 - **The timetable importer targets NTU's course site** (`course.ntu.edu.tw`)

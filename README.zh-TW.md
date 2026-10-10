@@ -42,7 +42,7 @@ npm run autostart:install
 | **講義** | NTU COOL 上各課程的檔案，依模組（週次）排列；可預覽、下載到 vault 或略過 |
 | **研究** | 研究主題 → 里程碑時間軸、研究日誌、相關論文與筆記、累計投入時數；可分成研究／課程／Side project 並篩選 |
 | **筆記** | 直接讀寫你的 Obsidian vault，不是另一份拷貝；側欄是可摺疊的資料夾樹 |
-| **文獻** | 論文清單、標籤、關聯研究主題、本機 PDF |
+| **文獻** | 論文清單、標籤、關聯研究主題、本機 PDF；點標題進閱讀頁：左邊論文、右邊筆記／Highlights／問 AI |
 | **文獻回顧** | 把論文並排成比較矩陣，旁邊寫綜合整理，可匯出 |
 | **時間** | 計時紀錄與實驗室進出打卡 |
 | **統計** | 每週／每月時數、依主題分配、每日熱區、連續出勤 |
@@ -58,7 +58,12 @@ npm run autostart:install
 
 **計時器不怕忘記停。** 頁面會定期回報「還開著」，如果電腦睡著或瀏覽器關掉，下次開啟時計時會**回溯結束在最後一次確認你還在的時刻**，不會把離開的十幾個小時算進統計。回來時會跳報告讓你確認或修正。
 
-**論文可以貼 DOI 自動填。** 貼 DOI、arXiv 編號或整段 BibTeX，標題作者年份就填好了。付費論文（IEEE Xplore 那類）下載的 PDF 可以直接拖進來，會複製一份到論文庫，之後清 Downloads 也不會斷連。
+**論文可以貼 DOI 自動填。** 貼 DOI、arXiv 編號或整段 BibTeX，標題作者年份就填好了。付費論文（IEEE Xplore 那類）下載的 PDF 可以直接拖進來，會複製一份到論文庫，之後清 Downloads 也不會斷連。把 PDF 拖到文獻頁任何地方，就會直接新增一篇論文並打開閱讀頁。
+
+**論文閱讀頁像 alphaXiv。** 左邊是論文，右邊三個分頁：
+- **筆記**：每篇論文一份 vault 筆記（`Papers/<標題>.md`，frontmatter 帶 paper_id），邊讀邊寫、自動儲存，Obsidian 那邊同時看得到。舊的論文筆記第一次打開時會自動搬進去。
+- **Highlights**：在論文上反白，選顏色就畫上重點，也可以加註解、插入筆記（`> 引文 — p.N`）、全部匯出到筆記。
+- **問 AI**：用本機的 Claude Code 或 Codex 問這篇論文，吃你已登入的訂閱，不需要 API key。論文會先抽成純文字（`data/paper-ai/`），AI 只拿到唯讀權限；回答裡的 `p.N` 點了會跳頁，追問會接續同一段對話。反白後按「問 AI」可以針對那段問。⚙ 可以指定模型（例如 CLI 預設模型不能用時）。
 
 **行事曆可以訂閱到 Mac。** 行程頁右上角「接到行事曆」。單向同步，改這邊會過去，改行事曆不會回來。
 
@@ -149,6 +154,7 @@ git init && git remote add origin <你的 private repo>
 |---|---|
 | `data/acadesk.db` | 你輸入的一切。已 gitignore |
 | `data/papers/` | 你附加的 PDF。已 gitignore |
+| `data/paper-ai/` | 給「問 AI」用的論文純文字快取。已 gitignore，刪掉會自動重建 |
 | `backups/snapshots/` | 還原等級的 `.db`，每天最新一份、14 天。已 gitignore |
 | `backups/export/` | 給 GitHub 備份用的 JSON。已 gitignore |
 | 你的 Obsidian vault | 筆記本體，以及從 COOL 下載的講義（`<課名>/Lectures/`）。這個 repo 的備份不碰它，用你自己的方式備份 |
@@ -199,7 +205,7 @@ tail -f ~/Library/Logs/acadesk-backup.log    # 備份
 ## 已知限制
 
 - **單人使用、沒有登入機制。** 它預設這是你自己的電腦，所以服務只聽 `127.0.0.1`，手機或別台電腦連不到。不要用反向代理或通道把它開到網路上——設定 COOL 登入之後，連得到的人就能讀你的 COOL 課程。
-- **對外連線只有兩處**：論文的 DOI／arXiv 查詢（Crossref／arXiv），送出的只有編號本身；以及 NTU COOL 和台大 SSO，只有存了鑰匙圈項目或設定 `COOL_COOKIE` 才會連（設了之後 08:00–18:00 每小時也會自動連，`COOL_AUTO_SYNC=0` 可關掉）。BibTeX 完全在本機解析。
+- **對外連線只有兩處**：論文的 DOI／arXiv 查詢（Crossref／arXiv），送出的只有編號本身；以及 NTU COOL 和台大 SSO，只有存了鑰匙圈項目或設定 `COOL_COOKIE` 才會連（設了之後 08:00–18:00 每小時也會自動連，`COOL_AUTO_SYNC=0` 可關掉）。BibTeX 完全在本機解析。「問 AI」執行的是你本機的 `claude`／`codex` CLI，論文文字會送到 Anthropic／OpenAI，跟你平常用那兩個 CLI 一樣。
 - **部分按鈕只在 macOS 有用**：「Finder」、「預覽程式」與開啟本機 `file://` 連結都靠 `open` 指令，其餘功能各平台都能用。
 - **課表匯入是針對臺大課程網**（`course.ntu.edu.tw`）的貼上格式寫的。別的學校對不上，手動輸入課程即可，其他功能不依賴它。
 - **介面是繁體中文**，程式碼與註解是英文。

@@ -177,9 +177,32 @@ export type Paper = {
   file_path: string;
   status: "to_read" | "reading" | "read";
   rating: number | null;
+  /** Legacy inline notes; moved into the vault note on first open of the reader. */
   notes_md: string;
+  /** Vault-relative path of the paper's note, '' until the reader first opens. */
+  note_path: string;
   added_at: string;
 };
+
+export type HighlightColor = "yellow" | "green" | "blue" | "pink";
+export const HIGHLIGHT_COLORS: HighlightColor[] = ["yellow", "green", "blue", "pink"];
+
+/** A rectangle as fractions of the page's width and height. */
+export type HighlightRect = { x: number; y: number; w: number; h: number };
+
+export type PaperHighlight = {
+  id: number;
+  paper_id: number;
+  page: number;
+  rects: HighlightRect[];
+  text: string;
+  comment: string;
+  color: HighlightColor;
+  created_at: string;
+};
+
+export type ChatProvider = "claude" | "codex";
+export type ChatMessage = { role: "user" | "assistant"; text: string; selection?: string; error?: boolean };
 
 /** One column of a review's comparison matrix. */
 export type ReviewColumn = { id: string; label: string };

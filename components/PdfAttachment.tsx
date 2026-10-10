@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { attachPdf, detachPdf, revealPdf } from "@/app/actions/papers";
+import { revealPdf } from "@/app/actions/papers";
 import { Button, cx } from "./ui";
 
 /**
@@ -22,6 +23,7 @@ export function PdfAttachment({
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   if (!paperId) {
     return (
@@ -33,11 +35,10 @@ export function PdfAttachment({
 
   const upload = (file: File) => {
     setError("");
-    const fd = new FormData();
-    fd.set("file", file);
     startTransition(async () => {
-      const result = await attachPdf(paperId, fd);
-      if (!result.ok) setError(result.error);
+      const result = await uploadPdf(paperId, file);
+      if (result.ok) router.refresh();
+      else setError(result.error);
     });
   };
 
@@ -58,7 +59,7 @@ export function PdfAttachment({
           </div>
           {!missing ? (
             <a
-              href={`/view/paper/${paperId}`}
+              href={`/papers/${paperId}`}
               className="shrink-0 text-xs text-[var(--accent)] hover:underline"
             >
               開啟
@@ -92,7 +93,11 @@ export function PdfAttachment({
             disabled={pending}
             onClick={() => {
               if (confirm("移除這個 PDF？論文本身不會刪除。")) {
-                startTransition(() => void detachPdf(paperId));
+                startTransition(async () => {
+                  const res = await fetch(`/api/papers/${paperId}/file`, { method: "DELETE" }).catch(() => null);
+                  if (res?.ok) router.refresh();
+                  else setError("移除失敗");
+                });
               }
             }}
           >
@@ -153,4 +158,27 @@ export function PdfAttachment({
       {error ? <p className="text-xs text-danger">{error}</p> : null}
     </div>
   );
+}
+
+/**
+ * Upload through the route handler: a server action would reject anything over
+ * its body limit before our code even ran.
+ */
+export async function uploadPdf(
+  paperId: number,
+  file: File,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    return { ok: false, error: "只接受 PDF 檔案" };
+  }
+  const fd = new FormData();
+  fd.set("file", file);
+  try {
+    const res = await fetch(`/api/papers/${paperId}/file`, { method: "POST", body: fd });
+    if (res.ok) return { ok: true };
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { ok: false, error: body?.error || `上傳失敗（HTTP ${res.status}）` };
+  } catch {
+    return { ok: false, error: "上傳失敗：連不到伺服器" };
+  }
 }

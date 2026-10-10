@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { splitList, type PaperRow, type Project } from "@/lib/types";
 import { PaperForm } from "./PaperForm";
@@ -81,14 +82,9 @@ export function PaperTable({
                 {expanded === p.id ? "▾" : "▸"}
               </button>
               <div className="min-w-0 flex-1">
-                <PaperForm
-                  paper={p}
-                  projects={projects}
-                  fileSize={sizes[p.id]}
-                  trigger={
-                    <span className="cursor-pointer text-sm font-medium hover:underline">{p.title}</span>
-                  }
-                />
+                <Link href={`/papers/${p.id}`} className="text-sm font-medium hover:underline">
+                  {p.title}
+                </Link>
                 <div className="mt-0.5 truncate text-xs text-dim">
                   {[p.authors, p.venue, p.year].filter(Boolean).join("　·　")}
                 </div>
@@ -111,15 +107,21 @@ export function PaperTable({
                     📄 遺失
                   </span>
                 ) : (
-                  <a
-                    href={`/view/paper/${p.id}`}
+                  <Link
+                    href={`/papers/${p.id}`}
                     className="shrink-0 text-xs text-[var(--accent)] hover:underline"
-                    title="開啟 PDF"
+                    title="閱讀、畫重點、做筆記"
                   >
-                    📄 PDF
-                  </a>
+                    📄 閱讀
+                  </Link>
                 )
               ) : null}
+              <PaperForm
+                paper={p}
+                projects={projects}
+                fileSize={sizes[p.id]}
+                trigger={<span className="cursor-pointer text-xs text-dim hover:text-ink">編輯</span>}
+              />
               {p.url ? (
                 <a
                   href={p.url}
@@ -133,7 +135,17 @@ export function PaperTable({
             </div>
             {expanded === p.id ? (
               <div className="border-t border-line bg-surface-2/50 px-4 py-3 pl-11">
-                {p.notes_md ? <Markdown>{p.notes_md}</Markdown> : <p className="text-xs text-dim">還沒有筆記</p>}
+                {p.notes_md ? (
+                  <Markdown>{p.notes_md}</Markdown>
+                ) : (
+                  <p className="text-xs text-dim">
+                    還沒有筆記，
+                    <Link href={`/papers/${p.id}`} className="text-[var(--accent)] hover:underline">
+                      打開閱讀頁
+                    </Link>
+                    開始寫。
+                  </p>
+                )}
               </div>
             ) : null}
           </div>
