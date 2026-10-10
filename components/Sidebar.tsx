@@ -10,6 +10,7 @@ import { AutoStopReport } from "./AutoStopReport";
 import { IdlePrompt } from "./IdlePrompt";
 import { NavLinks } from "./NavLinks";
 import { QuickAdd } from "./QuickAdd";
+import { SidebarToggle } from "./SidebarToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import { TimerHeartbeat } from "./TimerHeartbeat";
 import { TimerWidget, type TimerTarget } from "./TimerWidget";
@@ -34,13 +35,16 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="flex h-dvh w-60 shrink-0 flex-col gap-4 overflow-y-auto border-r border-line bg-surface px-3 py-4">
-      <Link href="/" className="flex items-center gap-2 px-1.5">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--accent)] text-sm font-bold text-white">
-          A
-        </span>
-        <span className="text-sm font-semibold tracking-tight">Acadesk</span>
-      </Link>
+    <aside className="sidebar flex h-dvh shrink-0 flex-col gap-4 overflow-x-hidden overflow-y-auto border-r border-line bg-surface px-3 py-4">
+      <div className="sb-head flex items-center gap-2">
+        <Link href="/" className="flex min-w-0 flex-1 items-center gap-2 px-1.5" title="Acadesk">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-sm font-bold text-white">
+            A
+          </span>
+          <span className="sb-label text-sm font-semibold tracking-tight">Acadesk</span>
+        </Link>
+        <SidebarToggle />
+      </div>
 
       <QuickAdd
         projects={projects}
@@ -66,7 +70,21 @@ export function Sidebar() {
       />
 
       <div className="mt-auto space-y-3">
-        <TodoList todos={todos} />
+        {/* Collapsed, the widgets shrink to a timer link; they come back on expand. */}
+        <Link
+          href="/time"
+          title={running ? `計時中：${running.project_title ?? running.course_name ?? "未分類"}` : "時間"}
+          className="sb-mini relative mx-auto grid h-9 w-9 place-items-center rounded-lg text-dim hover:bg-surface-2 hover:text-ink"
+        >
+          ⏱
+          {running ? (
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 animate-pulse rounded-full bg-[var(--accent)]" />
+          ) : null}
+        </Link>
+        <div className="sb-full">
+          <TodoList todos={todos} />
+        </div>
+        <div className="sb-full">
         <TimerWidget
           running={
             running
@@ -80,12 +98,14 @@ export function Sidebar() {
           targets={targets}
           maxHours={maxSessionHours()}
         />
+        </div>
         <TimerHeartbeat running={!!running} />
         <IdlePrompt running={!!running} idleMinutes={idleMinutes()} />
         {review ? <AutoStopReport review={review} /> : null}
-        <div className="flex items-center justify-between px-1">
-          <Link href="/settings" className="text-xs text-dim hover:text-ink">
-            設定
+        <div className="sb-foot flex items-center justify-between px-1">
+          <Link href="/settings" className="text-xs text-dim hover:text-ink" title="設定">
+            <span className="sb-label">設定</span>
+            <span className="sb-mini text-sm">⚙</span>
           </Link>
           <ThemeToggle />
         </div>

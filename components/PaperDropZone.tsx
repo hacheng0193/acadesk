@@ -53,7 +53,7 @@ export function PaperDropZone({ children }: { children: React.ReactNode }) {
       {over || busy ? (
         <div
           className={cx(
-            "pointer-events-none fixed inset-y-0 right-0 left-60 z-20 grid place-items-center",
+            "pointer-events-none fixed inset-y-0 right-0 left-[var(--sidebar-w)] z-20 grid place-items-center",
             "border-2 border-dashed border-[var(--accent)] bg-accent-soft/60 text-sm font-medium text-[var(--accent)]",
           )}
         >

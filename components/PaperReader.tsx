@@ -19,6 +19,7 @@ type Tab = "notes" | "highlights" | "ai";
 
 const MIN_PANEL = 320;
 const PANEL_KEY = "paper-reader-panel-width";
+const PANEL_OPEN_KEY = "paper-reader-panel-open";
 
 /**
  * The paper reader: the PDF on the left, notes / highlights / an AI chat on the
@@ -48,6 +49,7 @@ export function PaperReader({
   const [editing, setEditing] = useState<number | null>(null);
   const [selection, setSelection] = useState<PdfSelection | null>(null);
   const [panelWidth, setPanelWidth] = useState(440);
+  const [panelOpen, setPanelOpen] = useState(true);
   const viewer = useRef<PdfViewerHandle>(null);
   const notes = useRef<NotesHandle>(null);
   const ask = useRef<AskPanelHandle>(null);
@@ -60,6 +62,7 @@ export function PaperReader({
     try {
       const w = Number(localStorage.getItem(PANEL_KEY));
       if (w >= MIN_PANEL) setPanelWidth(w);
+      if (localStorage.getItem(PANEL_OPEN_KEY) === "0") setPanelOpen(false);
     } catch {
       // Storage blocked: keep the default.
     }
@@ -87,6 +90,21 @@ export function PaperReader({
     window.addEventListener("pointerup", up);
   };
 
+  const showPanel = (open: boolean) => {
+    setPanelOpen(open);
+    try {
+      localStorage.setItem(PANEL_OPEN_KEY, open ? "1" : "0");
+    } catch {
+      // Not remembered; fine.
+    }
+  };
+
+  /** Switch tabs, reopening the panel if it was collapsed. */
+  const openTab = (t: Tab) => {
+    setTab(t);
+    if (!panelOpen) showPanel(true);
+  };
+
   const clearSelection = () => {
     window.getSelection()?.removeAllRanges();
     setSelection(null);
@@ -101,25 +119,25 @@ export function PaperReader({
     setActive(h.id);
     if (comment) {
       setEditing(h.id);
-      setTab("highlights");
+      openTab("highlights");
     }
   };
 
   const goTo = useCallback((page: number, y?: number) => viewer.current?.goToPage(page, y), []);
 
   const insertIntoNotes = (text: string) => {
-    setTab("notes");
+    openTab("notes");
     // The panel may be mounting; give it a frame.
     requestAnimationFrame(() => notes.current?.insert(text));
   };
 
   const askAbout = (text: string, page?: number) => {
-    setTab("ai");
+    openTab("ai");
     requestAnimationFrame(() => ask.current?.quote(text, page));
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 left-60 z-10 flex flex-col bg-[var(--bg)]">
+    <div className="fixed inset-y-0 right-0 left-[var(--sidebar-w)] z-10 flex flex-col bg-[var(--bg)]">
       <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2">
         <Link href="/papers" className="shrink-0 text-xs text-dim hover:text-ink">
           ← 文獻
@@ -153,10 +171,11 @@ export function PaperReader({
           fileSize={fileSize}
           trigger={<span className="cursor-pointer text-xs text-dim hover:text-ink">編輯資訊</span>}
         />
+        <PanelToggle open={panelOpen} onClick={() => showPanel(!panelOpen)} />
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <section className="min-w-0 flex-1 p-3 pr-0">
+        <section className={cx("min-w-0 flex-1 p-3", panelOpen && "pr-0")}>
           {hasPdf ? (
             <PdfViewer
               src={`/api/papers/${paper.id}/file`}
@@ -166,7 +185,7 @@ export function PaperReader({
               activeHighlight={active}
               onHighlightClick={(id) => {
                 setActive(id);
-                setTab("highlights");
+                openTab("highlights");
               }}
               onSelect={setSelection}
               toolbarExtra={
@@ -194,14 +213,21 @@ export function PaperReader({
           role="separator"
           aria-orientation="vertical"
           onPointerDown={dragDivider}
-          className="w-3 shrink-0 cursor-col-resize after:mx-auto after:block after:h-full after:w-px after:bg-transparent hover:after:bg-[var(--accent)]"
+          className={cx(
+            "w-3 shrink-0 cursor-col-resize after:mx-auto after:block after:h-full after:w-px after:bg-transparent hover:after:bg-[var(--accent)]",
+            !panelOpen && "hidden",
+          )}
         />
 
         <aside
           style={{ width: panelWidth }}
-          className="my-3 mr-3 flex shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-surface"
+          // Hidden rather than unmounted, so a draft or a running answer survives.
+          className={cx(
+            "my-3 mr-3 shrink-0 flex-col overflow-hidden rounded-xl border border-line bg-surface",
+            panelOpen ? "flex" : "hidden",
+          )}
         >
-          <nav className="flex gap-1 border-b border-line px-2 pt-2">
+          <nav className="flex items-end gap-1 border-b border-line px-2 pt-2">
             {(
               [
                 ["notes", "筆記"],
@@ -221,6 +247,15 @@ export function PaperReader({
                 {label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => showPanel(false)}
+              title="收合右側欄"
+              aria-label="收合右側欄"
+              className="mb-1 ml-auto grid h-6 w-6 place-items-center rounded text-dim hover:bg-surface-2 hover:text-ink"
+            >
+              ⇥
+            </button>
           </nav>
           {/* All three stay mounted so a draft or a running answer survives a tab switch. */}
           <div className={cx("min-h-0 flex-1", tab !== "notes" && "hidden")}>
@@ -251,6 +286,34 @@ export function PaperReader({
             />
           </div>
         </aside>
+
+        {panelOpen ? null : (
+          <div className="my-3 mr-3 flex w-10 shrink-0 flex-col items-center gap-1 rounded-xl border border-line bg-surface py-2">
+            {(
+              [
+                ["notes", "筆記", "✎"],
+                ["highlights", "Highlights", "▍"],
+                ["ai", "問 AI", "✦"],
+              ] as const
+            ).map(([key, label, icon]) => (
+              <button
+                key={key}
+                type="button"
+                title={label}
+                aria-label={label}
+                onClick={() => openTab(key)}
+                className="relative grid h-8 w-8 place-items-center rounded-lg text-sm text-dim hover:bg-surface-2 hover:text-ink"
+              >
+                {icon}
+                {key === "highlights" && highlights.length ? (
+                  <span className="absolute -top-0.5 -right-0.5 rounded-full bg-accent-soft px-1 text-[9px] text-[var(--accent)]">
+                    {highlights.length}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {selection ? (
@@ -273,6 +336,24 @@ export function PaperReader({
         />
       ) : null}
     </div>
+  );
+}
+
+function PanelToggle({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={open ? "收合右側欄" : "展開右側欄"}
+      aria-label={open ? "收合右側欄" : "展開右側欄"}
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-dim hover:bg-surface-2 hover:text-ink"
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <rect x="2" y="2.5" width="12" height="11" rx="2" />
+        <path d="M10 2.5v11" />
+        <path d={open ? "M5 6.5 6.5 8 5 9.5" : "M7 6.5 5.5 8 7 9.5"} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
   );
 }
 

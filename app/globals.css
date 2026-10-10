@@ -219,3 +219,40 @@ body {
 .textLayer.selecting .endOfContent {
   top: 0;
 }
+
+/* Sidebar: full width, or icons only when <html> has .sb-collapsed (set by
+   SidebarToggle, and before paint by the layout's script). Anything placed
+   beside the sidebar uses --sidebar-w. */
+:root {
+  --sidebar-w: 15rem;
+}
+html.sb-collapsed {
+  --sidebar-w: 3.75rem;
+}
+.sidebar {
+  width: var(--sidebar-w);
+  transition: width 0.15s ease;
+}
+html:not(.sb-collapsed) .sb-mini,
+html.sb-collapsed .sb-label,
+html.sb-collapsed .sb-full {
+  display: none;
+}
+html.sb-collapsed .sidebar {
+  padding-inline: 0.5rem;
+}
+html.sb-collapsed .sidebar .sb-head {
+  flex-direction: column;
+}
+html.sb-collapsed .sidebar .sb-head > a {
+  flex: none;
+  padding: 0;
+}
+html.sb-collapsed .sidebar nav a,
+html.sb-collapsed .sidebar .sb-center {
+  justify-content: center;
+}
+html.sb-collapsed .sidebar .sb-foot {
+  flex-direction: column;
+  gap: 0.5rem;
+}

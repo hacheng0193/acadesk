@@ -76,11 +76,12 @@ export function QuickAdd({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-2 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs text-dim transition-colors hover:text-ink"
+        title="快速新增（⌘K）"
+        className="sb-center flex w-full items-center gap-2 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs text-dim transition-colors hover:text-ink"
       >
         <span className="text-sm leading-none">＋</span>
-        <span className="flex-1 text-left">快速新增</span>
-        <kbd className="rounded border border-line bg-surface px-1 font-mono text-[10px]">⌘K</kbd>
+        <span className="sb-label flex-1 text-left">快速新增</span>
+        <kbd className="sb-label rounded border border-line bg-surface px-1 font-mono text-[10px]">⌘K</kbd>
       </button>
 
       <Modal title="搜尋與新增" open={open} onClose={close} width="max-w-xl">

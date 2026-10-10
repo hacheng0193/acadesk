@@ -17,19 +17,23 @@ export function NavLinks({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            title={item.label}
             className={cx(
-              "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+              "relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
               active
                 ? "bg-accent-soft font-medium text-[var(--accent)]"
                 : "text-dim hover:bg-surface-2 hover:text-ink",
             )}
           >
             <span className="w-4 text-center text-[13px]">{item.icon}</span>
-            <span className="flex-1 truncate">{item.label}</span>
+            <span className="sb-label flex-1 truncate">{item.label}</span>
             {item.badge ? (
-              <span className="rounded-md bg-danger-soft px-1.5 text-[11px] font-semibold text-danger">
-                {item.badge}
-              </span>
+              <>
+                <span className="sb-label rounded-md bg-danger-soft px-1.5 text-[11px] font-semibold text-danger">
+                  {item.badge}
+                </span>
+                <span className="sb-mini absolute top-1 right-1 h-2 w-2 rounded-full bg-danger" />
+              </>
             ) : null}
           </Link>
         );

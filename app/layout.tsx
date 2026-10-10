@@ -9,10 +9,12 @@ export const metadata: Metadata = {
   description: "課程、作業、研究進度與時間管理",
 };
 
-// Applied before paint so a dark-mode reload never flashes white.
+// Applied before paint so a dark-mode reload never flashes white, and a
+// collapsed sidebar never flashes open.
 const THEME_SCRIPT = `try{var t=localStorage.getItem('theme');
 if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))
-document.documentElement.classList.add('dark')}catch(e){}`;
+document.documentElement.classList.add('dark');
+if(localStorage.getItem('sidebar-collapsed')==='1')document.documentElement.classList.add('sb-collapsed')}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
