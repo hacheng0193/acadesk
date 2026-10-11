@@ -113,6 +113,7 @@ const LOG_BODIES: Record<LogKind, string> = {
   meeting: "## 討論\n\n## 決議\n\n## 待辦\n- [ ] \n",
   idea: "",
   lecture: "## 課程 / 章節\n\n## 重點\n\n## 疑問\n\n## 待辦\n- [ ] \n",
+  weekly: "## 本週進度\n\n## 遇到的問題\n\n## 下週計畫\n- [ ] \n\n## 需要討論\n",
   blank: "",
 };
 
@@ -127,6 +128,7 @@ const TEMPLATES: Record<string, (title: string, date: string) => string> = {
   experiment: (t, d) => logNote("experiment", t, d),
   meeting: (t, d) => logNote("meeting", t, d),
   idea: (t, d) => logNote("idea", t, d),
+  weekly: (t, d) => logNote("weekly", t, d),
   paper: (t, d) =>
     `---\ntype: paper-note\ndate: ${d}\n---\n\n# ${t}\n\n## 問題\n\n## 方法\n\n## 結果\n\n## 對我的啟發\n\n`,
 };

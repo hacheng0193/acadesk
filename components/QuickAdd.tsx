@@ -231,6 +231,7 @@ export function QuickAdd({
                       <option value="blank">空白</option>
                       <option value="experiment">實驗記錄</option>
                       <option value="meeting">Meeting notes</option>
+                      <option value="weekly">Weekly report（週報）</option>
                       <option value="paper">論文筆記</option>
                     </select>
                   </Field>

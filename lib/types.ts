@@ -141,13 +141,14 @@ export type Milestone = {
   sort_order: number;
 };
 
-export type LogKind = "experiment" | "meeting" | "idea" | "lecture" | "blank";
+export type LogKind = "experiment" | "meeting" | "idea" | "lecture" | "weekly" | "blank";
 
 export const LOG_KINDS: { key: LogKind; label: string; tone: "accent" | "warn" | "neutral" }[] = [
   { key: "experiment", label: "實驗", tone: "accent" },
   { key: "meeting", label: "Meeting", tone: "warn" },
   { key: "idea", label: "想法", tone: "neutral" },
   { key: "lecture", label: "上課筆記", tone: "warn" },
+  { key: "weekly", label: "週報", tone: "accent" },
   { key: "blank", label: "空白", tone: "neutral" },
 ];
 
@@ -155,7 +156,7 @@ export const LOG_KIND: Record<LogKind, (typeof LOG_KINDS)[number]> = Object.from
   LOG_KINDS.map((k) => [k.key, k]),
 ) as Record<LogKind, (typeof LOG_KINDS)[number]>;
 
-/** A research log entry: a vault note with `type: experiment|meeting|idea`. */
+/** A research log entry: a vault note with `type: experiment|meeting|idea|lecture|weekly`. */
 export type VaultLog = {
   rel_path: string;
   title: string;

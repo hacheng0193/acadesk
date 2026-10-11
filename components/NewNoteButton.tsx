@@ -9,6 +9,7 @@ import { Modal, ModalActions } from "./ui/Modal";
 const TEMPLATES = [
   { key: "experiment", label: "實驗記錄" },
   { key: "meeting", label: "Meeting notes" },
+  { key: "weekly", label: "Weekly report（週報）" },
   { key: "paper", label: "論文筆記" },
   { key: "blank", label: "空白" },
 ];
